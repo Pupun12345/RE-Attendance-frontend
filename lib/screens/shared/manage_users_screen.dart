@@ -182,7 +182,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
   @override
   Widget build(BuildContext context) {
     // ✅ 4. Determine the title based on the filter
-    String title = "Manage All Users";
+    String title = "";
     if (widget.roleFilter == 'worker') title = "Manage Workers";
     if (widget.roleFilter == 'supervisor') title = "Manage Supervisors";
     if (widget.roleFilter == 'management') title = "Manage Management";
