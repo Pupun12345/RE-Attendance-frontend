@@ -58,27 +58,28 @@ class _AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
     _fetchMyAttendance();
   }
 
-  // 3. Function to fetch and filter attendance
+  // lib/screens/management/attendance_overview_screen.dart
+
+  // ... (keep your imports and AttendanceRecord class as they are) ...
+
   Future<void> _fetchMyAttendance() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
-      
-      // Get the logged-in user's ID
       final userString = prefs.getString('user');
+
       if (token == null || userString == null) {
         throw Exception("Not authorized.");
       }
-      final Map<String, dynamic> myUser = jsonDecode(userString);
-      final String myUserId = myUser['id'];
 
-      // Define a date range (e.g., last 90 days)
+      final Map<String, dynamic> myUser = jsonDecode(userString);
+      final String myUserId = myUser['id'] ?? myUser['_id']; // Handle both ID formats
+
+      // Use a robust date range (e.g., past 90 days)
       final String endDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final String startDate = DateFormat('yyyy-MM-dd')
           .format(DateTime.now().subtract(const Duration(days: 90)));
 
-      // Call the existing daily report route
-      // NOTE: We need to use 'reports/attendance/daily' as there is no user-specific route
       final url = Uri.parse(
           '$apiBaseUrl/api/v1/reports/attendance/daily?startDate=$startDate&endDate=$endDate');
 
@@ -91,22 +92,31 @@ class _AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
         final data = jsonDecode(response.body);
         final List<dynamic> allRecords = data['data'];
 
-        // Filter the full report to find *only* our records
+        // ✅ BETTER FILTERING LOGIC
         final List<AttendanceRecord> myRecords = allRecords
-            .where((record) => record['user']['_id'] == myUserId)
+            .where((record) {
+              // Check if 'user' is an object or just an ID string
+              if (record['user'] is Map) {
+                return record['user']['_id'] == myUserId || record['user']['id'] == myUserId;
+              } else if (record['user'] is String) {
+                return record['user'] == myUserId;
+              }
+              return false;
+            })
             .map((record) => AttendanceRecord.fromJson(record))
             .toList();
 
-        // Sort by date, most recent first
+        // Sort by date (newest first)
         myRecords.sort((a, b) => b.date.compareTo(a.date));
 
-        setState(() {
-          _myAttendanceRecords = myRecords;
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _myAttendanceRecords = myRecords;
+            _isLoading = false;
+          });
+        }
       } else {
-         final data = jsonDecode(response.body);
-        throw Exception(data['message'] ?? "Failed to load attendance report.");
+        throw Exception("Failed to load attendance.");
       }
     } catch (e) {
       if (mounted) {

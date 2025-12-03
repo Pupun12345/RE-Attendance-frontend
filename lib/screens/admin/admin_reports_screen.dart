@@ -1,6 +1,7 @@
 // lib/screens/admin_reports_screen.dart
 import 'dart:convert'; // ✅ CORRECTED: Use a colon
 import 'dart:io'; // ✅ CORRECTED: Use a colon
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
@@ -33,38 +34,44 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     setState(() {
       _selectedReports[key] = !_selectedReports[key]!;
     });
-  }
-
-  // ✅ --- 1. NEW: HELPER TO SAVE THE FILE ---
+  }// ✅ --- UPDATED: SAVE CSV FILE HELPER ---
   Future<void> _saveCsvFile(String csvData, String suggestedFileName) async {
     try {
-      // Show "Save As..." dialog
+      // 1. Encode the String to Bytes (Required for Android/iOS)
+      //    The error happens because mobile platforms need the actual data
+      //    to pass to the system's "Save" dialog.
+      List<int> list = utf8.encode(csvData);
+      Uint8List bytes = Uint8List.fromList(list);
+
+      // 2. Open Save Dialog
       String? outputPath = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Report As',
         fileName: suggestedFileName,
         allowedExtensions: ['csv'],
         type: FileType.custom,
+        bytes: bytes, // <--- 🔑 THIS IS THE KEY FIX
       );
 
+      // 3. Handle Success
       if (outputPath != null) {
-        // Ensure it has the .csv extension
-        if (!outputPath.endsWith('.csv')) {
-          outputPath += '.csv';
+        // On Mobile: The library handles writing the file when 'bytes' is passed.
+        // On Desktop (Windows/Mac): It returns the path, so we must write the file manually.
+        if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+           if (!outputPath.endsWith('.csv')) {
+             outputPath += '.csv';
+           }
+           final File file = File(outputPath);
+           await file.writeAsBytes(bytes);
         }
-        final File file = File(outputPath);
-        await file.writeAsString(csvData); // Write the CSV string to the file
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Report saved successfully to $outputPath"),
+              content: Text("Report saved successfully!"),
               backgroundColor: Colors.green,
             ),
           );
         }
-      } else {
-        // User cancelled the save dialog
-        _showError("File save cancelled.");
       }
     } catch (e) {
       _showError("Error saving file: ${e.toString()}");

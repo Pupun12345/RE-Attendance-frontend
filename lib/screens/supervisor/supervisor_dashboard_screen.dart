@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
-import 'dart:convert'; 
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ✅ --- FIXED IMPORTS ---
@@ -27,7 +27,7 @@ class SupervisorDashboardScreen extends StatefulWidget {
 class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   String _currentStatus = "Checked In (09:00 AM)";
   String _location = "Fetching location...";
-  int _selectedIndex = 0; 
+  int _selectedIndex = 0;
 
   String _userName = "User Name";
   String _userRole = "Role";
@@ -47,7 +47,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     super.initState();
     _fetchLocation();
     _startStatusTimer();
-    _loadUserData(); 
+    _loadUserData();
   }
 
   Future<void> _loadUserData() async {
@@ -73,12 +73,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       const WorkersScreen(), // Index 3
       _buildProfileScreen(), // Index 4
     ];
-    
+
     setState(() {
-       _isLoadingProfile = false; 
+      _isLoadingProfile = false;
     });
   }
-  
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -127,7 +127,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     if (!mounted) return;
     setState(() {
       _location =
-          "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
+      "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
     });
   }
 
@@ -139,12 +139,12 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear(); 
+    await prefs.clear();
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (Route<dynamic> route) => false, 
+            (Route<dynamic> route) => false,
       );
     }
   }
@@ -172,7 +172,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         children: [
           Text(title,
               style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           child,
         ],
@@ -191,9 +191,15 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       "My Profile"
     ];
 
+    // Hide parent AppBar when child screens provide their own header (indices 1,2,3)
+    final bool hideParentAppBar = _selectedIndex == 1 || _selectedIndex == 2 || _selectedIndex == 3;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7FB),
-      appBar: AppBar(
+
+      appBar: hideParentAppBar
+          ? null
+          : AppBar(
         title: Text(
           _titles[_selectedIndex], // Dynamic title
           style: TextStyle(
@@ -207,13 +213,14 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         elevation: 1,
         automaticallyImplyLeading: false, // Removes back arrow
       ),
+
       // Body now uses an IndexedStack to keep state
       body: _isLoadingProfile
           ? const Center(child: CircularProgressIndicator()) // Show loader while screens init
           : IndexedStack(
-              index: _selectedIndex,
-              children: _screens,
-            ),
+        index: _selectedIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
@@ -222,17 +229,11 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
         unselectedItemColor: Colors.grey,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
         items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined), label: "Home"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.check_circle_outline), label: "Attendance"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.report_gmailerrorred_outlined),
-              label: "Complaint"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.group_outlined), label: "Workers"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline), label: "Profile"),
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: "Home"),
+          BottomNavigationBarItem(icon: Icon(Icons.check_circle_outline), label: "Attendance"),
+          BottomNavigationBarItem(icon: Icon(Icons.report_gmailerrorred_outlined), label: "Complaint"),
+          BottomNavigationBarItem(icon: Icon(Icons.group_outlined), label: "Workers"),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: "Profile"),
         ],
       ),
     );
@@ -333,7 +334,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       ),
     );
   }
-  
+
   Widget _buildProfileDetailCard(
       {required IconData icon, required String label, required String value}) {
     return Card(
@@ -415,7 +416,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                         context,
                         MaterialPageRoute(
                             builder: (context) =>
-                                const SelfieCheckOutScreen()));
+                            const SelfieCheckOutScreen()));
                   },
                   icon: const Icon(Icons.logout_outlined),
                   label: const Text("Check-Out"),
@@ -441,7 +442,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               hintText: "Enter worker ID or name",
               prefixIcon: const Icon(Icons.person_outline),
               border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
           const SizedBox(height: 12),
@@ -485,7 +486,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
                     context,
                     MaterialPageRoute(
                         builder: (context) =>
-                            const OvertimeSubmissionScreen()));
+                        const OvertimeSubmissionScreen()));
               },
               icon: const Icon(Icons.send),
               label: const Text("Overtime Submit"),
