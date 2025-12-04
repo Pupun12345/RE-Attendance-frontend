@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smartcare_app/utils/constants.dart';
 import 'package:smartcare_app/screens/admin/admin_pending_attendance_screen.dart';
+import 'package:smartcare_app/screens/admin/admin_dashboard_screen.dart';
 
 class AdminSummaryDashboardScreen extends StatefulWidget {
   const AdminSummaryDashboardScreen({super.key});
@@ -25,14 +26,14 @@ class _AdminSummaryDashboardScreenState
   int totalSupervisors = 0;
   int totalWorkers = 0;
   int totalManagement = 0;
-  int presentToday = 0; // ✅ Default to 0
-  int absentToday = 0;  // ✅ Default to 0
+  int presentToday = 0;
+  int absentToday = 0;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchDashboardData(); // ✅ Renamed function
+    _fetchDashboardData();
   }
 
   // ✅ --- FETCH ALL DASHBOARD DATA ---
@@ -69,7 +70,8 @@ class _AdminSummaryDashboardScreenState
       }
 
       // --- 2. Fetch Attendance Summary ---
-      final summaryUrl = Uri.parse('$apiBaseUrl/api/v1/attendance/summary/today');
+      final summaryUrl =
+      Uri.parse('$apiBaseUrl/api/v1/attendance/summary/today');
       final summaryResponse = await http.get(summaryUrl, headers: headers);
 
       int present = 0;
@@ -82,7 +84,7 @@ class _AdminSummaryDashboardScreenState
       } else {
         _showError("Failed to load attendance summary.");
       }
-      
+
       // --- 3. Update State Once ---
       setState(() {
         totalSupervisors = supervisors;
@@ -91,7 +93,6 @@ class _AdminSummaryDashboardScreenState
         presentToday = present;
         absentToday = absent;
       });
-
     } catch (e) {
       _showError("An error occurred: ${e.toString()}");
     } finally {
@@ -114,7 +115,7 @@ class _AdminSummaryDashboardScreenState
 
   // 🔹 Edit Value Dialog (No longer used for Present/Absent)
   void _editValue(String title, int currentValue, Function(int) onUpdate) {
-    // This function remains but we will no longer call it for Present/Absent
+    // not used now
   }
 
   @override
@@ -122,28 +123,33 @@ class _AdminSummaryDashboardScreenState
     return Scaffold(
       backgroundColor: greyBackground,
       appBar: AppBar(
-        // ... (AppBar code is unchanged) ...
-        backgroundColor: Colors.white,
+        backgroundColor: primaryBlue,
         elevation: 1,
         centerTitle: true,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 12.0),
-          child: CircleAvatar(
-            backgroundImage: const AssetImage("assets/images/profile.png"),
-            radius: 18,
-            backgroundColor: Colors.grey[300],
-          ),
+
+        // 🔙 Back icon → AdminDashboardScreen
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AdminDashboardScreen(),
+              ),
+            );
+          },
         ),
-        title: Text(
-          "",
+
+        title: const Text(
+          "Dashboard Summary",
           style: TextStyle(
-            color: primaryBlue,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
         actions: [
           IconButton(
-            icon: Icon(LucideIcons.bell, color: primaryBlue),
+            icon: Icon(LucideIcons.bell, color: Colors.white),
             onPressed: () {},
           ),
           const SizedBox(width: 8),
@@ -152,55 +158,55 @@ class _AdminSummaryDashboardScreenState
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: primaryBlue))
           : RefreshIndicator(
-              onRefresh: _fetchDashboardData, // ✅ Use new function
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    // 🔹 Top Row — Supervisors & Workers
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildInfoCard(
-                            icon: LucideIcons.userCog,
-                            title: "Total Supervisors",
-                            value: totalSupervisors,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildInfoCard(
-                            icon: LucideIcons.users,
-                            title: "Total Workers",
-                            value: totalWorkers,
-                          ),
-                        ),
-                      ],
+        onRefresh: _fetchDashboardData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              // 🔹 Top Row — Supervisors & Workers
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildInfoCard(
+                      icon: LucideIcons.userCog,
+                      title: "Total Supervisors",
+                      value: totalSupervisors,
                     ),
-
-                    const SizedBox(height: 12),
-
-                    // 🔹 Management
-                    _buildInfoCard(
-                      icon: LucideIcons.briefcase,
-                      title: "Total Management",
-                      value: totalManagement,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildInfoCard(
+                      icon: LucideIcons.users,
+                      title: "Total Workers",
+                      value: totalWorkers,
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // 🔹 Attendance Summary
-                    _buildAttendanceCard(), // ✅ This will now show API data
-
-                    const SizedBox(height: 16),
-
-                    // 🔹 Pending Attendance Card
-                    _buildPendingAttendanceCard(context),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ),
+
+              const SizedBox(height: 12),
+
+              // 🔹 Management
+              _buildInfoCard(
+                icon: LucideIcons.briefcase,
+                title: "Total Management",
+                value: totalManagement,
+              ),
+
+              const SizedBox(height: 16),
+
+              // 🔹 Attendance Summary
+              _buildAttendanceCard(),
+
+              const SizedBox(height: 16),
+
+              // 🔹 Pending Attendance Card
+              _buildPendingAttendanceCard(context),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -211,7 +217,6 @@ class _AdminSummaryDashboardScreenState
     required int value,
     VoidCallback? onEdit,
   }) {
-    // ... (This function is unchanged) ...
     return GestureDetector(
       onTap: onEdit,
       child: Card(
@@ -251,7 +256,7 @@ class _AdminSummaryDashboardScreenState
                 ),
               ),
               if (onEdit != null)
-                Icon(LucideIcons.edit, size: 16, color: Colors.grey[400])
+                Icon(LucideIcons.edit, size: 16, color: Colors.grey[400]),
             ],
           ),
         ),
@@ -287,14 +292,12 @@ class _AdminSummaryDashboardScreenState
                   color: Colors.green,
                   label: "Present",
                   value: presentToday,
-                  // ✅ REMOVED 'onTap'
                 ),
                 _buildAttendanceItem(
                   icon: LucideIcons.xCircle,
                   color: Colors.redAccent,
                   label: "Absent",
                   value: absentToday,
-                  // ✅ REMOVED 'onTap'
                 ),
               ],
             ),
@@ -306,7 +309,6 @@ class _AdminSummaryDashboardScreenState
 
   // 🔹 Pending Attendance Card (only title + arrow)
   Widget _buildPendingAttendanceCard(BuildContext context) {
-    // ... (This function is unchanged) ...
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -362,9 +364,8 @@ class _AdminSummaryDashboardScreenState
     required Color color,
     required String label,
     required int value,
-    VoidCallback? onTap, // ✅ 'onTap' is now optional
+    VoidCallback? onTap, // optional
   }) {
-    // ... (This function is unchanged) ...
     return GestureDetector(
       onTap: onTap,
       child: Row(

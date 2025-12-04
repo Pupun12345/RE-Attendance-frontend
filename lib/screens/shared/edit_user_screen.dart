@@ -1,13 +1,18 @@
 // lib/screens/edit_user_screen.dart
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:smartcare_app/models/user_model.dart';
 import 'package:smartcare_app/utils/constants.dart';
 
 class EditUserScreen extends StatefulWidget {
   final User user;
+
   const EditUserScreen({super.key, required this.user});
 
   @override
@@ -25,34 +30,135 @@ class _EditUserScreenState extends State<EditUserScreen> {
   late String _selectedRole;
 
   bool _isSaving = false;
+  bool _isDisabling = false;
+
+  // Profile image state
+  final ImagePicker _picker = ImagePicker();
+  File? _selectedImageFile;
+  String? _existingImageUrl;
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill the form fields with the user's data
     _nameController = TextEditingController(text: widget.user.name);
     _userIdController = TextEditingController(text: widget.user.userId);
     _phoneController = TextEditingController(text: widget.user.phone);
     _emailController = TextEditingController(text: widget.user.email ?? '');
     _selectedRole = widget.user.role;
+
+    _existingImageUrl = widget.user.profileImageUrl;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _userIdController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _disableUser() async {
+    setState(() => _isDisabling = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final url = Uri.parse('$apiBaseUrl/api/v1/users/${widget.user.id}');
+      final response = await http.delete(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("User disabled successfully"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        Navigator.pop(context, true);
+      } else {
+        _showError(data['message'] ?? "Failed to disable user.");
+      }
+    } catch (e) {
+      _showError("Error occurred");
+    } finally {
+      if (mounted) setState(() => _isDisabling = false);
+    }
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Change Profile Photo",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _pickImage(ImageSource.camera);
+                      },
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text("Camera"),
+                    ),
+                  ),
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _pickImage(ImageSource.gallery);
+                      },
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text("Gallery"),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final XFile? picked =
+    await _picker.pickImage(source: source, imageQuality: 70);
+    if (picked != null) {
+      setState(() {
+        _selectedImageFile = File(picked.path);
+      });
+    }
   }
 
   Future<void> _updateUser() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
-      if (token == null) {
-        _showError("Not authorized.");
-        return;
-      }
 
       final url = Uri.parse('$apiBaseUrl/api/v1/users/${widget.user.id}');
-      
       final Map<String, dynamic> body = {
         'name': _nameController.text,
         'userId': _userIdController.text,
@@ -60,9 +166,15 @@ class _EditUserScreenState extends State<EditUserScreen> {
         'role': _selectedRole,
       };
 
-      // Only include email if it's not empty
       if (_emailController.text.isNotEmpty) {
         body['email'] = _emailController.text;
+      }
+
+      // If new profile image selected, send as base64
+      if (_selectedImageFile != null) {
+        final bytes = await _selectedImageFile!.readAsBytes();
+        final String base64Image = base64Encode(bytes);
+        body['profileImageBase64'] = base64Image;
       }
 
       final response = await http.put(
@@ -77,24 +189,21 @@ class _EditUserScreenState extends State<EditUserScreen> {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success'] == true) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("User updated successfully!"),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.pop(context, true); // Go back and indicate success
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("User updated successfully!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true);
       } else {
         _showError(data['message'] ?? 'Failed to update user.');
       }
     } catch (e) {
-      _showError("An error occurred. Please check your connection.");
+      _showError("Connection error");
     } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -134,19 +243,85 @@ class _EditUserScreenState extends State<EditUserScreen> {
           key: _formKey,
           child: Column(
             children: [
-              // (Note: Image updating is complex, so we'll skip it for this form)
+              // Profile Photo
+              Center(
+                child: Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 46,
+                          backgroundColor: Colors.blue[50],
+                          backgroundImage: _selectedImageFile != null
+                              ? FileImage(_selectedImageFile!)
+                              : (_existingImageUrl != null &&
+                              _existingImageUrl!.isNotEmpty
+                              ? NetworkImage(_existingImageUrl!)
+                          as ImageProvider
+                              : null),
+                          child: _selectedImageFile == null &&
+                              (_existingImageUrl == null ||
+                                  _existingImageUrl!.isEmpty)
+                              ? Icon(
+                            Icons.person,
+                            size: 42,
+                            color: primaryBlue,
+                          )
+                              : null,
+                        ),
+                        GestureDetector(
+                          onTap: _showImageSourceSheet,
+                          child: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: primaryBlue,
+                            child: const Icon(
+                              Icons.edit,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _showImageSourceSheet,
+                      child: Text(
+                        "Change Photo",
+                        style: TextStyle(
+                          color: primaryBlue,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
               _buildTextField(_nameController, "Name *"),
               const SizedBox(height: 16),
               _buildTextField(_userIdController, "User ID *"),
               const SizedBox(height: 16),
-              _buildTextField(_phoneController, "Phone Number *",
-                  keyboardType: TextInputType.phone),
+              _buildTextField(
+                _phoneController,
+                "Phone Number *",
+                keyboardType: TextInputType.phone,
+              ),
               const SizedBox(height: 16),
-              _buildTextField(_emailController, "Email",
-                  keyboardType: TextInputType.emailAddress, isRequired: false),
+              _buildTextField(
+                _emailController,
+                "Email",
+                keyboardType: TextInputType.emailAddress,
+                isRequired: false,
+              ),
               const SizedBox(height: 20),
               _buildRoleDropdown(),
               const SizedBox(height: 30),
+
+              // Save Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -159,19 +334,46 @@ class _EditUserScreenState extends State<EditUserScreen> {
                     ),
                   ),
                   child: _isSaving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
+                      ? const CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  )
                       : const Text(
-                          "Save Changes",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
+                    "Save Changes",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Disable Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isDisabling ? null : _disableUser,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isDisabling
+                      ? const CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  )
+                      : const Text(
+                    "Disable User",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -187,35 +389,35 @@ class _EditUserScreenState extends State<EditUserScreen> {
       decoration: InputDecoration(
         labelText: 'Role *',
         labelStyle: TextStyle(color: primaryBlue),
-        focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: primaryBlue, width: 2),
-          borderRadius: BorderRadius.circular(12),
-        ),
         enabledBorder: OutlineInputBorder(
           borderSide: BorderSide(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: primaryBlue),
           borderRadius: BorderRadius.circular(12),
         ),
         filled: true,
         fillColor: Colors.white,
       ),
       items: ['worker', 'supervisor', 'management', 'admin']
-          .map((role) => DropdownMenuItem(
-                value: role,
-                child: Text(role[0].toUpperCase() + role.substring(1)),
-              ))
+          .map(
+            (role) => DropdownMenuItem(
+          value: role,
+          child: Text(role[0].toUpperCase() + role.substring(1)),
+        ),
+      )
           .toList(),
-      onChanged: (value) {
-        if (value != null) {
-          setState(() {
-            _selectedRole = value;
-          });
-        }
-      },
+      onChanged: (value) => setState(() => _selectedRole = value!),
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label,
-      {TextInputType keyboardType = TextInputType.text, bool isRequired = true}) {
+  Widget _buildTextField(
+      TextEditingController controller,
+      String label, {
+        TextInputType keyboardType = TextInputType.text,
+        bool isRequired = true,
+      }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
@@ -228,12 +430,12 @@ class _EditUserScreenState extends State<EditUserScreen> {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: primaryBlue),
-        focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: primaryBlue, width: 2),
-          borderRadius: BorderRadius.circular(12),
-        ),
         enabledBorder: OutlineInputBorder(
           borderSide: BorderSide(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: primaryBlue),
           borderRadius: BorderRadius.circular(12),
         ),
         filled: true,

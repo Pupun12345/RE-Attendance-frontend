@@ -1,16 +1,17 @@
 // lib/screens/admin_reports_screen.dart
-import 'dart:convert'; // ✅ CORRECTED: Use a colon
-import 'dart:io'; // ✅ CORRECTED: Use a colon
-import 'dart:typed_data';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:csv/csv.dart'; 
-import 'package:file_picker/file_picker.dart'; 
-import 'package:intl/intl.dart'; // ✅ ADDED: For DateFormat
+import 'package:csv/csv.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
+
 import 'package:smartcare_app/utils/constants.dart';
-import 'package:smartcare_app/screens/admin/admin_reports_screen.dart';
+import 'package:smartcare_app/screens/admin/admin_dashboard_screen.dart';
 
 class AdminReportsScreen extends StatefulWidget {
   const AdminReportsScreen({super.key});
@@ -34,69 +35,73 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     setState(() {
       _selectedReports[key] = !_selectedReports[key]!;
     });
-  }// ✅ --- UPDATED: SAVE CSV FILE HELPER ---
+  }
+
+  // ✅ --- 1. HELPER TO SAVE THE FILE ---
   Future<void> _saveCsvFile(String csvData, String suggestedFileName) async {
     try {
-      // 1. Encode the String to Bytes (Required for Android/iOS)
-      //    The error happens because mobile platforms need the actual data
-      //    to pass to the system's "Save" dialog.
-      List<int> list = utf8.encode(csvData);
-      Uint8List bytes = Uint8List.fromList(list);
-
-      // 2. Open Save Dialog
+      // Show "Save As..." dialog
       String? outputPath = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Report As',
         fileName: suggestedFileName,
         allowedExtensions: ['csv'],
         type: FileType.custom,
-        bytes: bytes, // <--- 🔑 THIS IS THE KEY FIX
       );
 
-      // 3. Handle Success
       if (outputPath != null) {
-        // On Mobile: The library handles writing the file when 'bytes' is passed.
-        // On Desktop (Windows/Mac): It returns the path, so we must write the file manually.
-        if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-           if (!outputPath.endsWith('.csv')) {
-             outputPath += '.csv';
-           }
-           final File file = File(outputPath);
-           await file.writeAsBytes(bytes);
+        // Ensure it has the .csv extension
+        if (!outputPath.endsWith('.csv')) {
+          outputPath += '.csv';
         }
+        final File file = File(outputPath);
+        await file.writeAsString(csvData);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Report saved successfully!"),
+              content: Text("Report saved successfully to $outputPath"),
               backgroundColor: Colors.green,
             ),
           );
         }
+      } else {
+        // User cancelled the save dialog
+        _showError("File save cancelled.");
       }
     } catch (e) {
       _showError("Error saving file: ${e.toString()}");
     }
   }
 
-  // ✅ --- 2. NEW: CSV GENERATOR FUNCTIONS ---
-  // (These match your backend controller: reportController.js)
+  // ✅ --- 2. CSV GENERATOR FUNCTIONS ---
 
   String _generateDailyAttendanceCSV(List<dynamic> data) {
     final List<List<dynamic>> rows = [];
-    // Header row
     rows.add([
-      'User ID', 'Name', 'Date', 'Check-In', 'Check-Out', 'Status'
+      'User ID',
+      'Name',
+      'Date',
+      'Check-In',
+      'Check-Out',
+      'Status',
     ]);
-    
-    // Data rows
+
     for (var record in data) {
       rows.add([
         record['user']?['userId'] ?? 'N/A',
         record['user']?['name'] ?? 'N/A',
-        record['date'] != null ? DateFormat('yyyy-MM-dd').format(DateTime.parse(record['date'])) : 'N/A',
-        record['checkInTime'] != null ? DateFormat('hh:mm a').format(DateTime.parse(record['checkInTime'])) : '',
-        record['checkOutTime'] != null ? DateFormat('hh:mm a').format(DateTime.parse(record['checkOutTime'])) : '',
-        record['status'] ?? 'N/A'
+        record['date'] != null
+            ? DateFormat('yyyy-MM-dd').format(DateTime.parse(record['date']))
+            : 'N/A',
+        record['checkInTime'] != null
+            ? DateFormat('hh:mm a')
+            .format(DateTime.parse(record['checkInTime']))
+            : '',
+        record['checkOutTime'] != null
+            ? DateFormat('hh:mm a')
+            .format(DateTime.parse(record['checkOutTime']))
+            : '',
+        record['status'] ?? 'N/A',
       ]);
     }
     return const ListToCsvConverter().convert(rows);
@@ -104,19 +109,21 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   String _generateMonthlySummaryCSV(List<dynamic> data) {
     final List<List<dynamic>> rows = [];
-    // Header row
     rows.add([
-      'User ID', 'Name', 'Present Days', 'Absent Days', 'Leave Days'
+      'User ID',
+      'Name',
+      'Present Days',
+      'Absent Days',
+      'Leave Days',
     ]);
-    
-    // Data rows
+
     for (var summary in data) {
       rows.add([
         summary['userId'] ?? 'N/A',
         summary['name'] ?? 'N/A',
         summary['presentDays'] ?? 0,
         summary['absentDays'] ?? 0,
-        summary['leaveDays'] ?? 0
+        summary['leaveDays'] ?? 0,
       ]);
     }
     return const ListToCsvConverter().convert(rows);
@@ -124,12 +131,15 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   String _generateComplaintReportCSV(List<dynamic> data) {
     final List<List<dynamic>> rows = [];
-    // Header row
     rows.add([
-      'Submitted By (ID)', 'Submitted By (Name)', 'Title', 'Description', 'Status', 'Date Submitted'
+      'Submitted By (ID)',
+      'Submitted By (Name)',
+      'Title',
+      'Description',
+      'Status',
+      'Date Submitted',
     ]);
-    
-    // Data rows
+
     for (var complaint in data) {
       rows.add([
         complaint['user']?['userId'] ?? 'N/A',
@@ -137,19 +147,19 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         complaint['title'] ?? 'N/A',
         complaint['description'] ?? 'N/A',
         complaint['status'] ?? 'N/A',
-        complaint['createdAt'] != null ? DateFormat('yyyy-MM-dd').format(DateTime.parse(complaint['createdAt'])) : 'N/A'
+        complaint['createdAt'] != null
+            ? DateFormat('yyyy-MM-dd')
+            .format(DateTime.parse(complaint['createdAt']))
+            : 'N/A',
       ]);
     }
     return const ListToCsvConverter().convert(rows);
   }
 
-
-  // ✅ --- 3. UPDATED: EXPORT FUNCTION (Ties it all together) ---
+  // ✅ --- 3. EXPORT FUNCTION ---
   void _exportReports() async {
-    final selected = _selectedReports.entries
-        .where((e) => e.value)
-        .map((e) => e.key)
-        .toList();
+    final selected =
+    _selectedReports.entries.where((e) => e.value).map((e) => e.key).toList();
 
     if (selected.isEmpty) {
       _showError("Please select at least one report to export.");
@@ -167,15 +177,14 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         return;
       }
 
-      // NOTE: Your backend requires date queries for some reports.
-      // We are using example dates here. You can add Date Pickers
-      // to this screen later to let the user choose the range.
       final Map<String, String> reportEndpoints = {
-        "Daily Attendance Report": "/api/v1/reports/attendance/daily?startDate=2024-01-01&endDate=2025-12-31",
-        "Monthly Attendance Summary": "/api/v1/reports/attendance/monthly?month=11&year=2025",
+        "Daily Attendance Report":
+        "/api/v1/reports/attendance/daily?startDate=2024-01-01&endDate=2025-12-31",
+        "Monthly Attendance Summary":
+        "/api/v1/reports/attendance/monthly?month=11&year=2025",
         "Complaint Reports": "/api/v1/reports/complaints",
       };
-      
+
       List<String> successfulReports = [];
 
       for (String reportName in selected) {
@@ -191,7 +200,6 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
             String csvData = '';
             String fileName = '';
 
-            // Generate the correct CSV based on the report name
             if (reportName == "Daily Attendance Report") {
               csvData = _generateDailyAttendanceCSV(data);
               fileName = 'daily_attendance_report.csv';
@@ -203,20 +211,17 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               fileName = 'complaint_report.csv';
             }
 
-            // Save the generated CSV string to a file
             await _saveCsvFile(csvData, fileName);
             successfulReports.add(reportName);
-            
           } else {
-            _showError("Failed to fetch '${reportName}'.");
+            _showError("Failed to fetch '$reportName'.");
           }
         }
       }
 
       if (successfulReports.isEmpty) {
-         _showError("Failed to fetch any reports.");
+        _showError("Failed to fetch any reports.");
       }
-
     } catch (e) {
       _showError("An error occurred during export: ${e.toString()}");
     } finally {
@@ -241,35 +246,41 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
 
-      // AppBar is unchanged
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: primaryBlue,
         elevation: 1,
         centerTitle: true,
-        title: Text(
-          "Reports", // ✅ Set title
+
+        // 🔙 Back icon → AdminDashboardScreen
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AdminDashboardScreen(),
+              ),
+            );
+          },
+        ),
+
+        title: const Text(
+          "Reports",
           style: TextStyle(
-            color: primaryBlue,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
+
         actions: [
           IconButton(
-            icon: Icon(LucideIcons.bell, color: primaryBlue),
+            icon: const Icon(LucideIcons.bell, color: Colors.white),
             onPressed: () {},
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: CircleAvatar(
-              backgroundImage: const AssetImage("assets/images/profile.png"),
-              radius: 18,
-              backgroundColor: Colors.grey[300],
-            ),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
 
-      // Body is unchanged
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -278,31 +289,31 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               icon: LucideIcons.calendarDays,
               title: "Daily Attendance Report",
               description:
-                  "Export a detailed CSV report of daily employee attendance records, including check-in and check-out times for a selected period.",
+              "Export a detailed CSV report of daily employee attendance records, including check-in and check-out times for a selected period.",
             ),
             _buildReportCard(
               icon: LucideIcons.calendarRange,
               title: "Monthly Attendance Summary",
               description:
-                  "Generate a comprehensive monthly attendance summary in CSV format, ideal for payroll and HR analysis.",
+              "Generate a comprehensive monthly attendance summary in CSV format, ideal for payroll and HR analysis.",
             ),
             _buildReportCard(
               icon: LucideIcons.fileText,
               title: "Complaint Reports",
               description:
-                  "Access and export a list of submitted complaints, categorized by type and status, for administrative review.",
+              "Access and export a list of submitted complaints, categorized by type and status, for administrative review.",
             ),
             const SizedBox(height: 30),
 
-            // Export Button Section is unchanged
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 "Finalize Report Export",
                 style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: primaryBlue),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: primaryBlue,
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -310,15 +321,16 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _isExporting ? null : _exportReports, // ✅ Now functional
+                onPressed: _isExporting ? null : _exportReports,
                 icon: _isExporting
                     ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ))
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
                     : const Icon(LucideIcons.download, color: Colors.white),
                 label: const Text(
                   "Export Selected Reports",
@@ -342,8 +354,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       ),
     );
   }
-  
-  // _buildReportCard helper is unchanged
+
   Widget _buildReportCard({
     required IconData icon,
     required String title,
@@ -400,12 +411,14 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                     color: isSelected ? primaryBlue : Colors.grey.shade400,
                   ),
                   backgroundColor:
-                      isSelected ? primaryBlue.withOpacity(0.1) : Colors.white,
+                  isSelected ? primaryBlue.withOpacity(0.1) : Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                   padding: const EdgeInsets.symmetric(
-                      vertical: 10, horizontal: 24),
+                    vertical: 10,
+                    horizontal: 24,
+                  ),
                 ),
                 child: Text(
                   isSelected ? "Selected" : "Select",

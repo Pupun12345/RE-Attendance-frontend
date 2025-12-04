@@ -5,14 +5,12 @@ import 'package:smartcare_app/screens/supervisor/worker_checkout_screen.dart';
 
 class WorkerProfileScreen extends StatelessWidget {
   final String name;
-  final String userDisplayId; // e.g. UMS1402
-  final String workerId;      // e.g. 674dd... (Database ID)
+  final String userId;
 
   const WorkerProfileScreen({
     Key? key,
     required this.name,
-    required this.userDisplayId,
-    required this.workerId, // ✅ Required for API calls
+    required this.userId,
   }) : super(key: key);
 
   final Color themeBlue = const Color(0xFF0B3B8C);
@@ -76,7 +74,7 @@ class WorkerProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Name & ID row
+          // Name & ID row (icon + text)
           Row(
             children: [
               CircleAvatar(
@@ -96,7 +94,7 @@ class WorkerProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      userDisplayId,
+                      userId,
                       style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                   ],
@@ -112,14 +110,13 @@ class WorkerProfileScreen extends StatelessWidget {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // Navigate to check-in screen with worker ID
+                    // Navigate to the check-in screen
+                    // If your WorkerCheckInScreen accepts constructor params (name/userId),
+                    // update the constructor there and pass them here.
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => WorkerCheckInScreen(
-                          workerId: workerId, 
-                          workerName: name,
-                        ),
+                        builder: (context) => const WorkerCheckInScreen(),
                       ),
                     );
                   },
@@ -139,14 +136,13 @@ class WorkerProfileScreen extends StatelessWidget {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // Navigate to check-out screen with worker ID
+                    // Navigate to the check-out screen
+                    // If your WorkerCheckOutScreen accepts constructor params (name/userId),
+                    // update the constructor there and pass them here.
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => WorkerCheckOutScreen(
-                          workerId: workerId, 
-                          workerName: name,
-                        ),
+                        builder: (context) => const WorkerCheckOutScreen(),
                       ),
                     );
                   },

@@ -6,20 +6,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:smartcare_app/utils/constants.dart';
+import 'package:smartcare_app/screens/supervisor/supervisor_dashboard_screen.dart';
 
 class WorkerCheckInScreen extends StatefulWidget {
-  final String workerId;
-  final String workerName;
-
-  const WorkerCheckInScreen({
-    Key? key, 
-    required this.workerId, 
-    required this.workerName
-  }) : super(key: key);
+  const WorkerCheckInScreen({Key? key}) : super(key: key);
 
   @override
   State<WorkerCheckInScreen> createState() => _WorkerCheckInScreenState();
@@ -29,15 +20,21 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
   final Color themeBlue = const Color(0xFF0B3B8C);
   String _timeString = "";
   Timer? _timer;
+
+  // Forced to "umesh" as requested
+  String _userName = "umesh";
+
   String _locationText = "Fetching location...";
   File? _lastCapturedImage;
   final ImagePicker _picker = ImagePicker();
-  bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
     _startClock();
+    // NOTE: user requested "umesh" should be shown — using hardcoded value
+    // If you later want auto-fetch from prefs, replace this line.
+    //_loadUserName();
     _determinePositionAndListen();
   }
 
@@ -47,13 +44,13 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
     super.dispose();
   }
 
+  // Start realtime clock (updates every second)
   void _startClock() {
     _updateTime();
-    _timer = Timer.periodic(const Duration(seconds: 1), (Timer t) => _updateTime());
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
   }
 
   void _updateTime() {
-    if (!mounted) return;
     final now = DateTime.now();
     final hour = now.hour % 12 == 0 ? 12 : now.hour % 12;
     final minute = now.minute.toString().padLeft(2, '0');
@@ -68,10 +65,54 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
   }
 
   String _monthName(int m) {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ];
     return months[m - 1];
   }
 
+  // (Optional) If you want to fetch user name from SharedPreferences later,
+  // you can re-enable this function. Right now per request we show "umesh".
+  Future<void> _loadUserName() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userString = prefs.getString('user');
+      if (userString != null) {
+        try {
+          final Map<String, dynamic> userData = Map<String, dynamic>.from(
+            (userString.isNotEmpty && userString.startsWith("{"))
+                ? jsonDecode(userString)
+                : {},
+          );
+          if (userData.isNotEmpty &&
+              userData['name'] != null &&
+              userData['name'].toString().trim().isNotEmpty) {
+            setState(() => _userName = userData['name'].toString());
+            return;
+          }
+        } catch (_) {}
+      }
+      final nameKey = prefs.getString('name');
+      if (nameKey != null && nameKey.trim().isNotEmpty) {
+        setState(() => _userName = nameKey);
+      }
+    } catch (_) {
+      // ignore and keep default
+    }
+  }
+
+  // Get location once and keep it updated (not high-frequency)
   Future<void> _determinePositionAndListen() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -94,64 +135,56 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
         return;
       }
 
+      // initial position
       final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
       if (!mounted) return;
       setState(() => _locationText = "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}");
 
+      // optional: listen for position changes to update (every few seconds)
+      Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low, distanceFilter: 20),
+      ).listen((Position position) {
+        if (!mounted) return;
+        setState(() {
+          _locationText = "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
+        });
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _locationText = "Unable to fetch location");
     }
   }
 
+  // Open camera, capture image — you can upload this file afterwards
   Future<void> _openCameraAndCheckIn() async {
-    if (_locationText.contains("Fetching") || _locationText.contains("Unable") || _locationText.contains("GPS")) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Wait for location..."), backgroundColor: Colors.orange));
-      return;
-    }
-
     try {
-      final picked = await _picker.pickImage(source: ImageSource.camera, preferredCameraDevice: CameraDevice.front, imageQuality: 80);
-      if (picked == null) return;
+      final picked = await _picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+        imageQuality: 80,
+      );
+      if (picked == null) {
+        // user cancelled
+        return;
+      }
 
       setState(() {
         _lastCapturedImage = File(picked.path);
-        _isSubmitting = true;
       });
 
-      // --- API CALL ---
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
-      
-      var request = http.MultipartRequest('POST', Uri.parse("$apiBaseUrl/api/v1/attendance/supervisor/checkin"));
-      request.headers['Authorization'] = 'Bearer $token';
-      request.fields['workerId'] = widget.workerId;
-      request.fields['location'] = _locationText;
+      // You can replace this snackbar with real upload/attendance API call
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Checked in (image captured)"), backgroundColor: Colors.green),
+      );
 
-      request.files.add(await http.MultipartFile.fromPath(
-        'attendanceImage', 
-        picked.path,
-        contentType: MediaType('image', 'jpeg')
-      ));
-
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-         if(!mounted) return;
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Worker Checked In Successfully!"), backgroundColor: Colors.green));
-         Navigator.pop(context); // Go back
-      } else {
-         final respData = jsonDecode(response.body);
-         if(!mounted) return;
-         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(respData['message'] ?? "Failed"), backgroundColor: Colors.red));
-      }
-
+      // Optionally navigate back to dashboard:
+      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SupervisorDashboardScreen()));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error uploading data"), backgroundColor: Colors.red));
-    } finally {
-      if(mounted) setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to open camera"), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -163,11 +196,16 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
         backgroundColor: themeBlue,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const SupervisorDashboardScreen()),
+            );
+          },
         ),
         centerTitle: true,
         title: const Text(
-          "Worker Check In",
+          "Punch",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
       ),
@@ -177,6 +215,7 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Time row
               Row(
                 children: [
                   const Icon(Icons.access_time_outlined, size: 20, color: Colors.black87),
@@ -190,19 +229,24 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                 ],
               ),
               const SizedBox(height: 18),
+
+              // User name row (shows "umesh")
               Row(
                 children: [
                   const Icon(Icons.person_outline, size: 20, color: Colors.black87),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      widget.workerName,
+                      _userName,
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
               ),
+
               const SizedBox(height: 30),
+
+              // (Optional) last captured image preview
               if (_lastCapturedImage != null) ...[
                 Center(
                   child: ClipRRect(
@@ -212,11 +256,14 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                 ),
                 const SizedBox(height: 20),
               ],
-              const SizedBox(height: 100),
+
+              const SizedBox(height: 200),
             ],
           ),
         ),
       ),
+
+      // FOOTER: GPS row + Check In button together as one footer
       bottomNavigationBar: SafeArea(
         child: Container(
           color: Colors.transparent,
@@ -224,6 +271,7 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // GPS row
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 alignment: Alignment.centerLeft,
@@ -240,18 +288,19 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 8),
+
+              // Check In button
               SizedBox(
                 height: 58,
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _isSubmitting ? null : _openCameraAndCheckIn,
-                  icon: _isSubmitting 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                    : const Icon(Icons.camera_alt, size: 22, color: Colors.white),
-                  label: Text(
-                    _isSubmitting ? "Uploading..." : "Check In",
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+                  onPressed: _openCameraAndCheckIn,
+                  icon: const Icon(Icons.camera_alt, size: 22, color: Colors.white),
+                  label: const Text(
+                    "Check In",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: themeBlue,

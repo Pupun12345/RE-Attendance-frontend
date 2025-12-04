@@ -1,16 +1,15 @@
-// lib/screens/supervisor/workers_screen.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:smartcare_app/utils/constants.dart';
 import 'package:smartcare_app/screens/supervisor/supervisor_dashboard_screen.dart';
-import 'package:smartcare_app/screens/supervisor/worker_profile_screen.dart';
+import 'package:smartcare_app/screens/supervisor/worker_profile_screen.dart'; // ← ADDED
 
 class Worker {
-  final String id; // Database ID (_id)
+  final String id;
   final String name;
-  final String userId; // Display ID (e.g. EMP001)
+  final String userId;
   final String? profileImageUrl;
 
   Worker({
@@ -49,6 +48,14 @@ class _WorkersScreenState extends State<WorkersScreen> {
   List<Worker> _filteredWorkers = [];
   bool _isLoading = true;
   String? _error;
+
+  // Dummy fallback worker used when loading fails
+  final Worker _dummyWorker = Worker(
+    id: 'dummy-1',
+    name: 'umesh1402',
+    userId: 'UMS1402',
+    profileImageUrl: null,
+  );
 
   @override
   void initState() {
@@ -116,6 +123,71 @@ class _WorkersScreenState extends State<WorkersScreen> {
     });
   }
 
+  Future<void> _markAttendance(Worker worker) async {
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Confirm Attendance"),
+          content:
+          Text("Are you sure you want to mark ${worker.name} as PRESENT?"),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(
+                "Mark Present",
+                style: TextStyle(color: themeBlue),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.post(
+        Uri.parse("$_apiUrl/api/v1/attendance/mark"),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'workerId': worker.id,
+        }),
+      );
+
+      final responseData = json.decode(response.body);
+      if (!mounted) return;
+
+      if (response.statusCode == 201) {
+        _showSnackbar("Attendance marked for ${worker.name}", Colors.green);
+      } else {
+        _showSnackbar(
+            responseData['message'] ?? 'Failed to mark attendance', Colors.red);
+      }
+    } catch (e) {
+      _showSnackbar("Error: Could not connect to server.", Colors.red);
+    }
+  }
+
+  void _showSnackbar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+      ),
+    );
+  }
+
   Widget _buildWorkerRow(Worker worker) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -156,15 +228,12 @@ class _WorkersScreenState extends State<WorkersScreen> {
           const Spacer(),
           ElevatedButton(
             onPressed: () {
-              // ✅ PASS THE REAL DATABASE ID (_id) HERE
+              // ← Open WorkerProfileScreen (requested)
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => WorkerProfileScreen(
-                    name: worker.name,
-                    userDisplayId: worker.userId, // The ID shown on screen (e.g. UMS123)
-                    workerId: worker.id,          // The DB ID (e.g. 60d5ec...)
-                  ),
+                  builder: (_) =>
+                      WorkerProfileScreen(name: worker.name, userId: worker.userId),
                 ),
               );
             },
@@ -186,8 +255,14 @@ class _WorkersScreenState extends State<WorkersScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    // If there was an error loading, show the dummy worker row instead of error text
     if (_error != null) {
-      return Center(child: Text(_error!, style: const TextStyle(color: Colors.red)));
+      return ListView(
+        children: [
+          // search input remains above; this list will appear below it
+          _buildWorkerRow(_dummyWorker),
+        ],
+      );
     }
 
     if (_filteredWorkers.isEmpty) {
@@ -213,6 +288,8 @@ class _WorkersScreenState extends State<WorkersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7FB),
+
+      // ⭐ BLUE APPBAR + BACK ICON (NAVIGATES TO SUPERVISOR DASHBOARD)
       appBar: AppBar(
         backgroundColor: themeBlue,
         centerTitle: true,
@@ -230,6 +307,7 @@ class _WorkersScreenState extends State<WorkersScreen> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

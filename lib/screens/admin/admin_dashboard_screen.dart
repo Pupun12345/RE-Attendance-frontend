@@ -1,4 +1,3 @@
-// lib/screens/admin_dashboard_screen.dart
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:smartcare_app/screens/shared/manage_users_screen.dart';
@@ -8,7 +7,6 @@ import 'package:smartcare_app/screens/admin/admin_holiday_setup_screen.dart';
 import 'package:smartcare_app/screens/admin/admin_summary_dashboard_screen.dart';
 import 'package:smartcare_app/screens/admin/admin_overtime_view_screen.dart';
 import 'package:smartcare_app/screens/admin/admin_complaint_view_screen.dart';
-import 'package:smartcare_app/screens/admin/admin_pending_attendance_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -22,21 +20,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final Color primaryBlue = const Color(0xFF0D47A1);
   final Color lightBlue = const Color(0xFFE3F2FD);
 
-  final List<String> _titles = [
-    "Home",
-    "Dashboard Summary",
-    "Manage Users",
-    "Reports",
-    "Settings",
-  ];
-
   void _onNavItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
   }
 
-  // 隼 Main Home Dashboard Cards
   Widget _buildHomeDashboard() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -47,59 +34,81 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             icon: LucideIcons.users,
             title: "Manage Management Staff",
             subtitle: "Add, edit, or remove management-level employees.",
-            isManagementCard: true,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                const ManageUsersScreen(roleFilter: 'management'),
+              ),
+            ),
           ),
           _buildDashboardCard(
             icon: LucideIcons.userCog,
             title: "Manage Supervisors",
             subtitle: "Handle supervisor accounts and assign roles.",
-            isSupervisorCard: true,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                const ManageUsersScreen(roleFilter: 'supervisor'),
+              ),
+            ),
           ),
           _buildDashboardCard(
             icon: LucideIcons.user,
             title: "Manage Workers",
-            subtitle: "Oversee general worker profiles and attendance.",
-            isWorkerCard: true,
+            subtitle: "Oversee worker profiles and attendance.",
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                const ManageUsersScreen(roleFilter: 'worker'),
+              ),
+            ),
           ),
           _buildDashboardCard(
             icon: LucideIcons.clock8,
             title: "Overtime View",
-            subtitle:
-                "Monitor and approve overtime records submitted by staff and workers.",
-            isOvertimeCard: true,
+            subtitle: "Monitor overtime requests.",
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AdminOvertimeViewScreen(),
+              ),
+            ),
           ),
           _buildDashboardCard(
             icon: LucideIcons.messageCircle,
             title: "Complaint View",
-            subtitle:
-                "Review and address complaints or feedback raised by employees promptly.",
-            isComplaintCard: true,
+            subtitle: "Review and resolve complaints.",
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AdminComplaintViewScreen(),
+              ),
+            ),
           ),
           _buildDashboardCard(
             icon: LucideIcons.calendarDays,
             title: "Set Holidays",
-            subtitle: "Configure company holidays and special events.",
-            isHolidayCard: true,
+            subtitle: "Configure holidays.",
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AdminHolidaySetupScreen(),
+              ),
+            ),
           ),
-
-          // ✅ --- Pending Attendance Card REMOVED from here ---
         ],
       ),
     );
   }
 
-  // 隼 Reusable Dashboard Card Widget
   Widget _buildDashboardCard({
     required IconData icon,
     required String title,
     required String subtitle,
-    bool isHolidayCard = false,
-    bool isManagementCard = false,
-    bool isSupervisorCard = false,
-    bool isWorkerCard = false,
-    bool isOvertimeCard = false,
-    bool isComplaintCard = false,
-    // ✅ Parameter 'isPendingAttendanceCard' removed
+    required VoidCallback onTap,
   }) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -147,60 +156,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  // 隼 Navigation Logic
-                  if (isHolidayCard) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AdminHolidaySetupScreen(),
-                      ),
-                    );
-                  } else if (isManagementCard) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            const ManageUsersScreen(roleFilter: 'management'),
-                      ),
-                    );
-                  } else if (isSupervisorCard) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            const ManageUsersScreen(roleFilter: 'supervisor'),
-                      ),
-                    );
-                  } else if (isWorkerCard) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            const ManageUsersScreen(roleFilter: 'worker'),
-                      ),
-                    );
-                  } else if (isOvertimeCard) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AdminOvertimeViewScreen(),
-                      ),
-                    );
-                  } else if (isComplaintCard) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AdminComplaintViewScreen(),
-                      ),
-                    );
-                  // ✅ 'else if' block for Pending Attendance removed
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("$title section coming soon!")),
-                    );
-                  }
-                },
+                onPressed: onTap,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryBlue,
                   shape: RoundedRectangleBorder(
@@ -225,8 +181,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 隼 Define pages for navbar navigation
-    final List<Widget> _pages = [
+    final List<Widget> pages = [
       _buildHomeDashboard(),
       const AdminSummaryDashboardScreen(),
       const ManageUsersScreen(),
@@ -236,19 +191,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        backgroundColor: Colors.white,
+
+      // 🔥 No Back Icon — Only Title + Blue Theme
+      appBar: _selectedIndex == 0
+          ? AppBar(
+        backgroundColor: primaryBlue,
         elevation: 1,
         centerTitle: true,
-        title: Text(
-          _titles[_selectedIndex],
+        title: const Text(
+          "Home",
           style: TextStyle(
-            color: primaryBlue,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
-      ),
-      body: _pages[_selectedIndex],
+      )
+          : null,
+
+      body: pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onNavItemTapped,
@@ -256,10 +216,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         backgroundColor: Colors.white,
         selectedItemColor: primaryBlue,
         unselectedItemColor: Colors.black54,
-        selectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 13,
-        ),
+        selectedLabelStyle:
+        const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
         items: const [
           BottomNavigationBarItem(

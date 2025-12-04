@@ -28,14 +28,22 @@ class _OvertimeSubmissionScreenState extends State<OvertimeSubmissionScreen> {
   final TextEditingController reasonController = TextEditingController();
   bool _isLoading = false;
 
+  // ✅ INIT: default date = today
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = DateTime.now(); // yahi se aaj ki date auto select ho jayegi
+  }
+
   // --- Pickers ---
 
   Future<void> _pickDate() async {
+    DateTime now = DateTime.now();
     DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now().subtract(const Duration(days: 30)),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
+      initialDate: _selectedDate ?? now,
+      firstDate: now.subtract(const Duration(days: 30)),
+      lastDate: now.add(const Duration(days: 30)),
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
@@ -217,7 +225,7 @@ class _OvertimeSubmissionScreenState extends State<OvertimeSubmissionScreen> {
               onTap: _pickToTime,
             ),
 
-            // --- Reason Field (FIXED) ---
+            // --- Reason Field ---
             const SizedBox(height: 20),
             const Text("Reason for Overtime",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
@@ -235,7 +243,7 @@ class _OvertimeSubmissionScreenState extends State<OvertimeSubmissionScreen> {
               ),
             ),
 
-            // --- Submit Button (FIXED) ---
+            // --- Submit Button ---
             const SizedBox(height: 25),
             SizedBox(
               width: double.infinity,
@@ -248,12 +256,12 @@ class _OvertimeSubmissionScreenState extends State<OvertimeSubmissionScreen> {
                 label: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
-                        "Submit Overtime",
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white),
-                      ),
+                  "Submit Overtime",
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: themeBlue,
                   shape: RoundedRectangleBorder(

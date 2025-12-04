@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
-import 'package:flutter/material.dart'; // ✅ Corrected import
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
@@ -21,21 +21,16 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _userIdController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
 
   bool _isConfirmed = false;
   bool _isSaving = false;
-  bool _obscureNewPassword = true;
-  bool _obscureConfirmPassword = true;
 
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
 
   Future<void> _pickImage(ImageSource source) async {
     final pickedImage =
-        await _picker.pickImage(source: source, imageQuality: 80);
+    await _picker.pickImage(source: source, imageQuality: 80);
     if (pickedImage != null) {
       setState(() {
         _profileImage = File(pickedImage.path);
@@ -79,14 +74,9 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
     );
   }
 
-  // 🔹 Updated Save Worker function
+  // 🔹 Save Worker WITHOUT password fields on UI
   void _saveWorker() async {
     if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    if (_newPasswordController.text != _confirmPasswordController.text) {
-      _showError("Passwords do not match!");
       return;
     }
 
@@ -118,14 +108,16 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
       request.fields['name'] = _nameController.text;
       request.fields['userId'] = _userIdController.text;
       request.fields['phone'] = _phoneController.text;
-      request.fields['password'] = _newPasswordController.text;
       request.fields['role'] = 'worker'; // Hardcode role for this screen
+
+
+      request.fields['password'] = '123456';
 
       // 5. Add Image (if selected)
       if (_profileImage != null) {
         request.files.add(
           await http.MultipartFile.fromPath(
-            'profileImage', // This key must match your backend (upload.single('profileImage'))
+            'profileImage', // must match backend field name
             _profileImage!.path,
           ),
         );
@@ -202,10 +194,10 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
                       radius: 50,
                       backgroundColor: Colors.blue[50],
                       backgroundImage:
-                          _profileImage != null ? FileImage(_profileImage!) : null,
+                      _profileImage != null ? FileImage(_profileImage!) : null,
                       child: _profileImage == null
                           ? Icon(LucideIcons.camera,
-                              size: 34, color: primaryBlue)
+                          size: 34, color: primaryBlue)
                           : null,
                     ),
                     const SizedBox(height: 8),
@@ -220,35 +212,20 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
                 ),
               ),
               const SizedBox(height: 25),
+
               _buildTextField(_nameController, "Name *"),
               const SizedBox(height: 16),
+
               _buildTextField(_userIdController, "User ID *"),
               const SizedBox(height: 16),
-              _buildTextField(_phoneController, "Phone Number *",
-                  keyboardType: TextInputType.phone),
-              const SizedBox(height: 16),
-              _buildPasswordField(
-                controller: _newPasswordController,
-                label: "New Password *",
-                obscureText: _obscureNewPassword,
-                onToggle: () {
-                  setState(() {
-                    _obscureNewPassword = !_obscureNewPassword;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildPasswordField(
-                controller: _confirmPasswordController,
-                label: "Confirm Password *",
-                obscureText: _obscureConfirmPassword,
-                onToggle: () {
-                  setState(() {
-                    _obscureConfirmPassword = !_obscureConfirmPassword;
-                  });
-                },
+
+              _buildTextField(
+                _phoneController,
+                "Phone Number *",
+                keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 20),
+
               Row(
                 children: [
                   Checkbox(
@@ -256,7 +233,7 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
                     activeColor: primaryBlue,
                     onChanged: (value) {
                       setState(() {
-                        _isConfirmed = value!;
+                        _isConfirmed = value ?? false;
                       });
                     },
                   ),
@@ -269,6 +246,7 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
                 ],
               ),
               const SizedBox(height: 25),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -282,18 +260,20 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
                   ),
                   child: _isSaving
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
                       : const Text(
-                          "Save Worker",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
+                    "Save Worker",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -303,8 +283,11 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label,
-      {TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField(
+      TextEditingController controller,
+      String label, {
+        TextInputType keyboardType = TextInputType.text,
+      }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
@@ -317,48 +300,6 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: primaryBlue),
-        focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: primaryBlue, width: 2),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.grey.shade400),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        filled: true,
-        fillColor: Colors.white,
-      ),
-    );
-  }
-
-  Widget _buildPasswordField({
-    required TextEditingController controller,
-    required String label,
-    required bool obscureText,
-    required VoidCallback onToggle,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      validator: (value) {
-        if (value == null || value.trim().isEmpty) {
-          return "This field is required";
-        }
-        if (value.length < 6) {
-          return "Password must be at least 6 characters";
-        }
-        return null;
-      },
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: primaryBlue),
-        suffixIcon: IconButton(
-          icon: Icon(
-            obscureText ? Icons.visibility_off : Icons.visibility,
-            color: primaryBlue,
-          ),
-          onPressed: onToggle,
-        ),
         focusedBorder: OutlineInputBorder(
           borderSide: BorderSide(color: primaryBlue, width: 2),
           borderRadius: BorderRadius.circular(12),

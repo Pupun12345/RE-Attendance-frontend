@@ -3,11 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// ✅ --- FIXED IMPORTS ---
+// ✅ Imports
 import 'package:smartcare_app/screens/admin/admin_system_configuration_screen.dart';
-import 'package:smartcare_app/screens/shared/login_screen.dart'; // ✅ Import the NEW unified login screen
-// ✅ --- END OF FIX ---
-
+import 'package:smartcare_app/screens/shared/login_screen.dart';
+import 'package:smartcare_app/screens/admin/admin_dashboard_screen.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -27,10 +26,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
-        // ✅ --- FIXED NAVIGATION ---
-        // Point to the new unified LoginScreen, not the old AdminLoginScreen
         MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (Route<dynamic> route) => false,
+            (Route<dynamic> route) => false,
       );
     }
   }
@@ -40,29 +37,37 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     return Scaffold(
       backgroundColor: lightGrey,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: primaryBlue,
         elevation: 1,
         centerTitle: true,
-        title: Text(
-          "", // Title is handled by the dashboard
+
+
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AdminDashboardScreen(),
+              ),
+            );
+          },
+        ),
+
+        title: const Text(
+          "Settings",
           style: TextStyle(
-            color: primaryBlue,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
+
         actions: [
           IconButton(
-            icon: Icon(LucideIcons.bell, color: primaryBlue),
+            icon: Icon(LucideIcons.bell, color: Colors.white),
             onPressed: () {},
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: CircleAvatar(
-              backgroundImage: const AssetImage("assets/images/profile.png"),
-              radius: 18,
-              backgroundColor: Colors.grey[300],
-            ),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: SingleChildScrollView(
@@ -70,23 +75,22 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ... (All your settings cards remain the same) ...
             _buildSectionTitle("General Settings"),
             _buildSettingsCard(
               icon: LucideIcons.database,
               title: "System Configuration",
-              subtitle:
-                  "Adjust core application parameters and default values.",
+              subtitle: "Adjust core application parameters and default values.",
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) =>
-                          const AdminSystemConfigurationScreen()),
+                    builder: (context) =>
+                    const AdminSystemConfigurationScreen(),
+                  ),
                 );
               },
             ),
-             _buildSettingsCard(
+            _buildSettingsCard(
               icon: LucideIcons.palette,
               title: "Appearance & Theme",
               subtitle: "Customize the visual theme and display options.",
@@ -96,7 +100,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               icon: LucideIcons.clock,
               title: "Time & Locale",
               subtitle:
-                  "Set date format, time zones, and language preferences.",
+              "Set date format, time zones, and language preferences.",
               onTap: () {},
             ),
 
@@ -106,7 +110,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               icon: LucideIcons.lock,
               title: "User Roles & Permissions",
               subtitle:
-                  "Define and manage access levels for different user groups.",
+              "Define and manage access levels for different user groups.",
               onTap: () {},
             ),
             _buildSettingsCard(
@@ -128,12 +132,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               icon: LucideIcons.messageSquare,
               title: "Message Templates",
               subtitle:
-                  "Edit predefined messages for various system events.",
+              "Edit predefined messages for various system events.",
               onTap: () {},
             ),
             const SizedBox(height: 30),
 
-            // ✅ --- Logout Button (No changes needed, but logic is fixed) ---
+
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -143,12 +147,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   "Log Out",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.white
+                    color: Colors.white,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.redAccent[400],
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -162,7 +167,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     );
   }
 
-  // ... (All helper widgets _buildSectionTitle and _buildSettingsCard are the same) ...
+  // Helpers
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, left: 4, top: 10),
@@ -206,8 +211,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           subtitle,
           style: const TextStyle(color: Colors.black54, fontSize: 13),
         ),
-        trailing: Icon(Icons.arrow_forward_ios,
-            size: 18, color: Colors.grey.shade600),
+        trailing:
+        Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey.shade600),
         onTap: onTap,
       ),
     );
