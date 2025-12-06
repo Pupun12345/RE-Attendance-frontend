@@ -14,7 +14,7 @@ import 'package:smartcare_app/utils/constants.dart';
 import 'package:smartcare_app/screens/admin/admin_dashboard_screen.dart';
 
 class ManageUsersScreen extends StatefulWidget {
-  final String? roleFilter; 
+  final String? roleFilter;
 
   const ManageUsersScreen({
     super.key,
@@ -28,9 +28,7 @@ class ManageUsersScreen extends StatefulWidget {
 class _ManageUsersScreenState extends State<ManageUsersScreen> {
   final Color primaryBlue = const Color(0xFF0D47A1);
 
-
   List<User> _users = [];
-
 
   List<User> _filteredUsers = [];
 
@@ -119,7 +117,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
   }
 
   Future<void> _deleteUser(String userId) async {
-
     if (_token == null) {
       _showError("Not authorized.");
       return;
@@ -268,7 +265,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                 _buildAddButton("Add Management Staff", "Management Staff"),
                 const SizedBox(height: 25),
               ],
-
               Container(
                 margin: const EdgeInsets.only(bottom: 16),
                 child: TextField(
@@ -285,42 +281,40 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide:
-                      BorderSide(color: Colors.grey.shade300, width: 1),
+                          BorderSide(color: Colors.grey.shade300, width: 1),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide:
-                      BorderSide(color: Colors.grey.shade300, width: 1),
+                          BorderSide(color: Colors.grey.shade300, width: 1),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                      BorderSide(color: primaryBlue, width: 1.5),
+                      borderSide: BorderSide(color: primaryBlue, width: 1.5),
                     ),
                   ),
                 ),
               ),
-
               _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _filteredUsers.isEmpty
-                  ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Text(
-                    "No users found.",
-                    style: TextStyle(
-                      color: Colors.black54,
-                      fontSize: 15,
-                    ),
-                  ),
-                ),
-              )
-                  : Column(
-                children: _filteredUsers.map((user) {
-                  return _buildUserCard(user);
-                }).toList(),
-              ),
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Text(
+                              "No users found.",
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Column(
+                          children: _filteredUsers.map((user) {
+                            return _buildUserCard(user);
+                          }).toList(),
+                        ),
             ],
           ),
         ),
@@ -351,10 +345,19 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
       ),
     );
   }
+  // lib/screens/shared/manage_users_screen.dart
+
+// ... (existing code above _buildUserCard)
 
   Widget _buildUserCard(User user) {
-    ImageProvider profileImage =
-    const AssetImage("assets/images/profile.png");
+    // 1. Determine the status and assign conditional colors
+    final bool isActive = user.isActive;
+    final Color cardColor = isActive ? Colors.white : Colors.red.shade50;
+    final Color titleColor = isActive ? primaryBlue : Colors.red.shade800;
+    final Color subtitleColor = isActive ? Colors.black54 : Colors.red.shade600;
+    final Color iconColor = isActive ? primaryBlue : Colors.red.shade700;
+
+    ImageProvider profileImage = const AssetImage("assets/images/profile.png");
     if (user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty) {
       profileImage = NetworkImage(user.profileImageUrl!);
     }
@@ -363,30 +366,39 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 2,
+      // 2. Apply conditional color to the Card
+      color: cardColor,
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: Colors.blue[50],
           backgroundImage: profileImage,
           onBackgroundImageError: (exception, stackTrace) {
-            setState(() {
-              profileImage =
-              const AssetImage("assets/images/profile.png");
-            });
+            // Ensure setState is only called if the widget is still mounted
+            if (mounted) {
+              setState(() {
+                profileImage = const AssetImage("assets/images/profile.png");
+              });
+            }
           },
         ),
         title: Text(
-          user.name,
+          // 3. Display user ID and optionally mark as Disabled
+          user.userId + (isActive ? "" : " (DISABLED)"),
           style: TextStyle(
-            color: primaryBlue,
+            color: titleColor, // Apply conditional color
             fontWeight: FontWeight.bold,
           ),
         ),
         subtitle: Text(
-          user.role[0].toUpperCase() + user.role.substring(1),
+          // The subtitle will show the user's name
+          "${user.name} - ${user.role[0].toUpperCase() + user.role.substring(1)}",
+          style: TextStyle(
+            color: subtitleColor, // Apply conditional color
+          ),
         ),
-
         trailing: IconButton(
-          icon: Icon(LucideIcons.edit3, color: primaryBlue, size: 20),
+          icon: Icon(LucideIcons.edit3,
+              color: iconColor, size: 20), // Apply conditional color
           onPressed: () => _navigateToEditPage(user),
         ),
       ),

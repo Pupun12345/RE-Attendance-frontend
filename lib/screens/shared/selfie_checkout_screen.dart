@@ -8,7 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http_parser/http_parser.dart';
 import 'package:smartcare_app/utils/constants.dart';
-import 'package:geocoding/geocoding.dart'; // ✅ ADDED THIS IMPORT
+import 'package:geocoding/geocoding.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class SelfieCheckOutScreen extends StatefulWidget {
   const SelfieCheckOutScreen({super.key});
@@ -20,11 +21,18 @@ class SelfieCheckOutScreen extends StatefulWidget {
 class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
   String dateTime = "";
   String location = "Fetching location...";
+  String coordsText = "Fetching coordinates...";
   final Color themeBlue = const Color(0xFF0B3B8C);
   File? selfieImage;
   Position? _currentPosition;
   bool _isLoading = false;
-  String _userName = "Unknown"; 
+  String _userName = "Unknown";
+
+
+  bool _isPending = false;
+
+
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   final String _apiUrl = apiBaseUrl;
 
@@ -32,8 +40,23 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
   void initState() {
     super.initState();
     updateDateTime();
-    fetchLocation(); // ✅ This will now fetch the address
-    _loadUserData(); 
+    fetchLocation();
+    _loadUserData();
+    _loadPendingIfAny();
+
+    // 🔹 FIX: Wrap listener to handle List<ConnectivityResult>
+    _connectivitySub =
+        Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+          final result =
+          results.isNotEmpty ? results.first : ConnectivityResult.none;
+          _handleConnectivityChange(result);
+        });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadUserData() async {
@@ -50,18 +73,21 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
         timer.cancel();
         return;
       }
+      final now = DateTime.now();
       setState(() {
-        final now = DateTime.now();
         dateTime = "${now.day.toString().padLeft(2, '0')} "
             "${_month(now.month)} ${now.year} "
             "${_formatTime(now)}";
       });
     });
   }
-  
+
   String _month(int m) {
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    return months[m-1];
+    const months = [
+      "Jan","Feb","Mar","Apr","May","Jun",
+      "Jul","Aug","Sep","Oct","Nov","Dec"
+    ];
+    return months[m - 1];
   }
 
   String _formatTime(DateTime now) {
@@ -73,11 +99,14 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     return "$hour:$minute:$second $ampm";
   }
 
-  // ✅ UPDATED: Fetch Location & Convert to Address
+
   Future<void> fetchLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      setState(() => location = "GPS disabled");
+      setState(() {
+        location = "GPS disabled";
+        coordsText = "GPS disabled";
+      });
       return;
     }
 
@@ -85,47 +114,57 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        setState(() => location = "Location permission denied");
+        setState(() {
+          location = "Location permission denied";
+          coordsText = "Permission denied";
+        });
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      setState(() => location = "Permission blocked");
+      setState(() {
+        location = "Permission blocked";
+        coordsText = "Permission blocked";
+      });
       return;
     }
-    
+
     try {
-      // 1. Get raw coordinates
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 10),
       );
-      
-      _currentPosition = pos; // Save for backend API
 
-      // 2. Convert to Address (Reverse Geocoding)
+      _currentPosition = pos;
+
+      if (mounted) {
+        setState(() {
+          coordsText =
+          "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
+        });
+      }
+
       try {
         List<Placemark> placemarks = await placemarkFromCoordinates(
-          pos.latitude, 
-          pos.longitude
+          pos.latitude,
+          pos.longitude,
         );
 
         if (!mounted) return;
 
         if (placemarks.isNotEmpty) {
           Placemark place = placemarks[0];
-          // Format: "Street, City"
+          String city = place.locality ?? place.subAdministrativeArea ?? "";
+          String area = place.thoroughfare ?? place.subLocality ?? "";
+
           setState(() {
-            String city = place.locality ?? place.subAdministrativeArea ?? "";
-            String area = place.thoroughfare ?? place.subLocality ?? "";
-            
             if (area.isEmpty && city.isEmpty) {
-               location = "Unknown Location";
+              location = "Unknown Location";
             } else if (area.isEmpty) {
-               location = city;
+              location = city;
             } else {
-               location = "$area, $city";
+              location = "$area, $city";
             }
           });
         } else {
@@ -134,26 +173,29 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
           });
         }
       } catch (e) {
-        // Fallback if geocoding fails
         if (mounted) {
           setState(() {
-            location = "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
+            location =
+            "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
           });
         }
       }
-
     } catch (e) {
       if (mounted) {
-        setState(() => location = "Error fetching location.");
+        setState(() {
+          location = "Error fetching location.";
+          coordsText = "Error fetching coordinates.";
+        });
       }
     }
   }
 
+
   Future<void> openCamera() async {
     try {
       final pickedFile = await ImagePicker().pickImage(
-        source: ImageSource.camera, 
-        preferredCameraDevice: CameraDevice.front, // Use front camera
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
         imageQuality: 85,
       );
 
@@ -167,6 +209,14 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     }
   }
 
+
+  Future<bool> _hasInternet() async {
+    final result = await Connectivity().checkConnectivity();
+
+    return result != ConnectivityResult.none;
+  }
+
+  // 🧾 Main confirm flow
   Future<void> confirmCheckout() async {
     if (selfieImage == null) {
       _showError("Selfie is required");
@@ -177,24 +227,51 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
       return;
     }
 
+    final hasNet = await _hasInternet();
+
+    if (!hasNet) {
+
+      await _savePending();
+      return;
+    }
+
+
+    await _uploadCheckout(
+      imageFile: selfieImage!,
+      lat: _currentPosition!.latitude,
+      lng: _currentPosition!.longitude,
+      dt: dateTime,
+      fromRetry: false,
+    );
+  }
+
+
+  Future<void> _uploadCheckout({
+    required File imageFile,
+    required double lat,
+    required double lng,
+    required String dt,
+    required bool fromRetry,
+  }) async {
     setState(() => _isLoading = true);
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
-      
+
       var request = http.MultipartRequest(
         'POST',
         Uri.parse("$_apiUrl/api/v1/attendance/checkout"),
       );
-      
+
       request.headers['Authorization'] = 'Bearer $token';
-      request.fields['location'] = "${_currentPosition!.latitude},${_currentPosition!.longitude}";
-      
+      request.fields['location'] = "$lat,$lng";
+      request.fields['dateTime'] = dt;
+
       request.files.add(
         await http.MultipartFile.fromPath(
           'attendanceImage',
-          selfieImage!.path,
+          imageFile.path,
           contentType: MediaType('image', 'jpeg'),
         ),
       );
@@ -204,13 +281,25 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
       final responseData = json.decode(response.body);
 
       if (response.statusCode == 200) {
-        _showSuccess("Checked Out Successfully!");
+        await prefs.remove('pending_checkout');
+        setState(() => _isPending = false);
+
+        _showSuccess(fromRetry
+            ? "Pending Check-Out uploaded successfully!"
+            : "Checked Out Successfully!");
+
         if (!mounted) return;
         Navigator.pop(context);
       } else {
+        if (!fromRetry) {
+          await _savePending();
+        }
         _showError(responseData['message'] ?? "Check-out failed");
       }
     } catch (e) {
+      if (!fromRetry) {
+        await _savePending();
+      }
       _showError("Could not connect to server.");
     } finally {
       if (mounted) {
@@ -219,6 +308,154 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     }
   }
 
+
+  Future<void> _savePending() async {
+    if (selfieImage == null || _currentPosition == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+
+    final pendingData = {
+      "imagePath": selfieImage!.path,
+      "lat": _currentPosition!.latitude,
+      "lng": _currentPosition!.longitude,
+      "dateTime": dateTime,
+      "location": location,
+      "coordsText": coordsText,
+      "userName": _userName,
+    };
+
+    await prefs.setString('pending_checkout', jsonEncode(pendingData));
+
+    setState(() {
+      _isPending = true;
+    });
+
+    _showError("No internet. Check-Out marked as Pending.");
+  }
+
+
+  Future<void> _loadPendingIfAny() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('pending_checkout');
+    if (data == null) return;
+
+    final jsonData = jsonDecode(data);
+
+    setState(() {
+      _isPending = true;
+      selfieImage = File(jsonData['imagePath']);
+      coordsText = jsonData['coordsText'] ?? coordsText;
+      location = jsonData['location'] ?? location;
+      dateTime = jsonData['dateTime'] ?? dateTime;
+      _userName = jsonData['userName'] ?? _userName;
+    });
+  }
+
+
+  Future<void> _handleConnectivityChange(ConnectivityResult result) async {
+    if (result == ConnectivityResult.none) return;
+    if (!_isPending) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('pending_checkout');
+    if (data == null) return;
+
+    final jsonData = jsonDecode(data);
+    final img = File(jsonData['imagePath']);
+
+    await _uploadCheckout(
+      imageFile: img,
+      lat: (jsonData['lat'] as num).toDouble(),
+      lng: (jsonData['lng'] as num).toDouble(),
+      dt: jsonData['dateTime'],
+      fromRetry: true,
+    );
+  }
+
+  // 🪪 Pending detail card
+  void _showPendingDetailsCard() {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Pending Check-Out",
+                style: TextStyle(
+                  color: themeBlue,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (selfieImage != null)
+                CircleAvatar(
+                  radius: 60,
+                  backgroundImage: FileImage(selfieImage!),
+                ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.access_time, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      dateTime,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.gps_fixed, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      coordsText,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      location,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    "Close",
+                    style: TextStyle(color: themeBlue),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Snackbar helpers
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -235,6 +472,8 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool hasImage = selfieImage != null;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -266,13 +505,13 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
               children: [
                 const Icon(Icons.person_outline, size: 20),
                 const SizedBox(width: 8),
-                Text(_userName, style: const TextStyle(fontSize: 16)), 
+                Text(_userName, style: const TextStyle(fontSize: 16)),
               ],
             ),
 
             const Spacer(),
 
-            if (selfieImage != null)
+            if (hasImage)
               Center(
                 child: ClipOval(
                   child: Image.file(
@@ -284,13 +523,32 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
                 ),
               ),
 
-            if (selfieImage != null) const SizedBox(height: 20),
+            if (hasImage) const SizedBox(height: 20),
+
+            Row(
+              children: [
+                const Icon(Icons.gps_fixed, size: 18),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    coordsText,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
 
             Row(
               children: [
                 const Icon(Icons.location_on_outlined, size: 18),
                 const SizedBox(width: 6),
-                Expanded(child: Text(location, style: const TextStyle(fontSize: 14))),
+                Expanded(
+                  child: Text(
+                    location,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
               ],
             ),
 
@@ -300,20 +558,33 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton.icon(
-                onPressed: _isLoading 
-                    ? null 
-                    : (selfieImage == null ? openCamera : confirmCheckout),
+                onPressed: _isLoading
+                    ? null
+                    : (_isPending
+                    ? _showPendingDetailsCard
+                    : (hasImage ? confirmCheckout : openCamera)),
                 icon: _isLoading
                     ? Container()
-                    : Icon(selfieImage == null ? Icons.camera_alt : Icons.check, size: 22),
+                    : Icon(
+                  _isPending
+                      ? Icons.hourglass_bottom
+                      : (hasImage ? Icons.check : Icons.camera_alt),
+                  size: 22,
+                ),
                 label: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                        selfieImage == null ? "Take Photo" : "Confirm Clock-Out",
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
+                  _isPending
+                      ? "Pending"
+                      : (hasImage ? "Confirm Clock-Out" : "Take Photo"),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: themeBlue,
+                  backgroundColor:
+                  _isPending ? Colors.orange.shade700 : themeBlue,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(50),

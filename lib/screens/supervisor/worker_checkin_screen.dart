@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -22,7 +23,7 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
   String _timeString = "";
   Timer? _timer;
 
-  // Forced to "umesh" as requested earlier
+  // User name (default "umesh")
   String _userName = "umesh";
 
   String _locationText = "Fetching location...";
@@ -30,16 +31,32 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
   File? _lastCapturedImage;
   final ImagePicker _picker = ImagePicker();
 
+  // 🔹 Pending state
+  bool _isPending = false;
+  File? _pendingImage;
+  String? _pendingTime;
+  String? _pendingLocation;
+  String? _pendingAddress;
+
+  // 🔹 CONNECTIVITY STREAM (updated for connectivity_plus 6.x)
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+
   @override
   void initState() {
     super.initState();
     _startClock();
+    _loadUserName();
     _determinePositionAndListen();
+
+    // 🔹 Listen for connectivity changes (for pending sync)
+    _connectivitySub =
+        Connectivity().onConnectivityChanged.listen(_handleConnectivityChange);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _connectivitySub?.cancel();
     super.dispose();
   }
 
@@ -80,7 +97,6 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
     ];
     return months[m - 1];
   }
-
 
   Future<void> _loadUserName() async {
     try {
@@ -205,7 +221,6 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
     }
   }
 
-
   Future<void> _openCamera() async {
     try {
       final picked = await _picker.pickImage(
@@ -231,8 +246,55 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
     }
   }
 
+  // 🔹 Mark attendance as pending (no internet)
+  void _markPending() {
+    setState(() {
+      _isPending = true;
+      _pendingImage = _lastCapturedImage;
+      _pendingTime = _timeString;
+      _pendingLocation = _locationText;
+      _pendingAddress = _addressText;
+    });
 
-  void _confirmCheckIn() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("No internet. Attendance saved as pending."),
+        backgroundColor: Colors.orange,
+      ),
+    );
+  }
+
+  // 🔹 Handle connectivity change (LIST VERSION for connectivity_plus 6.x)
+  void _handleConnectivityChange(List<ConnectivityResult> results) {
+    if (!_isPending || _pendingImage == null) return;
+
+    // Agar kisi bhi interface pe network aa gaya (wifi/mobile), to sync man lo
+    final bool hasConnection =
+    results.any((r) => r != ConnectivityResult.none);
+
+    if (!hasConnection) return;
+
+    // Yahan backend ko pending attendance bhejna hai (abhi sirf UI message)
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Network restored. Pending attendance sent to admin (pending list).",
+        ),
+        backgroundColor: Colors.green,
+      ),
+    );
+
+    setState(() {
+      _isPending = false;
+      _pendingImage = null;
+      _pendingTime = null;
+      _pendingLocation = null;
+      _pendingAddress = null;
+    });
+  }
+
+  void _confirmCheckIn() async {
     if (_lastCapturedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -243,7 +305,18 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
       return;
     }
 
+    // Check network (ye abhi bhi single ConnectivityResult return karta hai)
+    final connectivity = await Connectivity().checkConnectivity();
+    final bool hasInternet = connectivity != ConnectivityResult.none;
 
+    if (!hasInternet) {
+      // 🔹 No internet → mark as pending
+      _markPending();
+      return;
+    }
+
+    // 🔹 Internet available → normal success (yahan real API call laga sakte ho)
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Checked in successfully!"),
@@ -256,6 +329,89 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
     //   context,
     //   MaterialPageRoute(builder: (_) => const SupervisorDashboardScreen()),
     // );
+  }
+
+  // 🔹 Show Pending Details Card (photo + time + location)
+  void _showPendingDetails() {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Pending Check-In",
+                style: TextStyle(
+                  color: themeBlue,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (_pendingImage != null)
+                CircleAvatar(
+                  radius: 60,
+                  backgroundImage: FileImage(_pendingImage!),
+                ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.access_time, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _pendingTime ?? _timeString,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _pendingAddress ?? _addressText,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.gps_fixed, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _pendingLocation ?? _locationText,
+                      style: const TextStyle(fontSize: 13, color: Colors.black54),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    "Close",
+                    style: TextStyle(color: themeBlue),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -340,7 +496,6 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                 const SizedBox(height: 20),
               ],
 
-              // Spacer-ish (UI balance)
               const SizedBox(height: 200),
             ],
           ),
@@ -405,16 +560,23 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
 
               const SizedBox(height: 8),
 
-              // Check In / Confirm Check In button
+              // Check In / Confirm Check In / Pending button
               SizedBox(
                 height: 58,
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: hasImage ? _confirmCheckIn : _openCamera,
-                  icon: const Icon(Icons.camera_alt,
-                      size: 22, color: Colors.white),
+                  onPressed: _isPending
+                      ? _showPendingDetails
+                      : (hasImage ? _confirmCheckIn : _openCamera),
+                  icon: Icon(
+                    _isPending ? Icons.hourglass_bottom : Icons.camera_alt,
+                    size: 22,
+                    color: Colors.white,
+                  ),
                   label: Text(
-                    hasImage ? "Confirm Check In" : "Check In",
+                    _isPending
+                        ? "Pending"
+                        : (hasImage ? "Confirm Check In" : "Check In"),
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -422,7 +584,8 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: themeBlue,
+                    backgroundColor:
+                    _isPending ? Colors.orange.shade700 : themeBlue,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),

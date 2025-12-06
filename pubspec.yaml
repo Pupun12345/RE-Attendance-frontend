@@ -21,9 +21,11 @@ dependencies:
   csv: ^5.0.3
   file_picker: ^8.1.6
   http_parser: ^4.0.2
-
-  cupertino_icons: ^1.0.2
   geocoding: ^4.0.0
+  cupertino_icons: ^1.0.2
+
+  # ✅ NEWLY ADDED
+  connectivity_plus: ^6.0.3
 
 dev_dependencies:
   flutter_test:
@@ -32,7 +34,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
+
   # Add your assets
   assets:
     - assets/images/

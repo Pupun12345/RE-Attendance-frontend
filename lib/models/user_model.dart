@@ -8,6 +8,8 @@ class User {
   final String? email;
   final String role;
   final String? profileImageUrl;
+  // isActive
+  final bool isActive;
 
   User({
     required this.id,
@@ -17,6 +19,7 @@ class User {
     this.email,
     required this.role,
     this.profileImageUrl,
+    required this.isActive,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -28,6 +31,7 @@ class User {
       email: json['email'],
       role: json['role'],
       profileImageUrl: json['profileImageUrl'],
+      isActive: json['isActive'] as bool? ?? true,
     );
   }
 }
