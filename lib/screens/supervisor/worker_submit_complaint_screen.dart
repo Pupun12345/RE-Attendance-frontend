@@ -1,16 +1,22 @@
-// lib/screens/supervisor/worker_submit_complaint_screen.dart
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:smartcare_app/utils/constants.dart';
 
 class WorkerSubmitComplaintScreen extends StatefulWidget {
   final String name;
-  final String userId;
+  final String userId;        // Display ID (e.g., U-001)
+  final String workerMongoId; // The Database ID (e.g., 65a...)
 
   const WorkerSubmitComplaintScreen({
     super.key,
     required this.name,
     required this.userId,
+    required this.workerMongoId, // ✅ This ID identifies the worker
   });
 
   @override
@@ -29,9 +35,11 @@ class _WorkerSubmitComplaintScreenState
   File? _selectedImage;
   bool _isSubmitting = false;
 
+  final String _apiUrl = apiBaseUrl;
+
   Future<void> _pickFromCamera() async {
     final XFile? img =
-    await _picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+        await _picker.pickImage(source: ImageSource.camera, imageQuality: 70);
     if (img != null) {
       setState(() => _selectedImage = File(img.path));
     }
@@ -39,13 +47,13 @@ class _WorkerSubmitComplaintScreenState
 
   Future<void> _pickFromGallery() async {
     final XFile? img =
-    await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (img != null) {
       setState(() => _selectedImage = File(img.path));
     }
   }
 
-  void _submitComplaint() async {
+  Future<void> _submitComplaint() async {
     if (_titleController.text.trim().isEmpty ||
         _descController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -59,20 +67,65 @@ class _WorkerSubmitComplaintScreenState
 
     setState(() => _isSubmitting = true);
 
-    // TODO: yahan API call add kar sakte ho
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
 
+      if (token == null) {
+        _showError("Authentication error. Please login again.");
+        return;
+      }
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse("$_apiUrl/api/v1/complaints"),
+      );
+
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // ✅ Sending the Worker's ID so the backend assigns it to them
+      request.fields['title'] = _titleController.text.trim();
+      request.fields['description'] = _descController.text.trim();
+      request.fields['workerId'] = widget.workerMongoId;
+
+      if (_selectedImage != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'complaintImage',
+            _selectedImage!.path,
+            contentType: MediaType('image', 'jpeg'),
+          ),
+        );
+      }
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+      final responseData = json.decode(response.body);
+
+      if (response.statusCode == 201 && responseData['success'] == true) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Complaint submitted for ${widget.name}"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      } else {
+        _showError(responseData['message'] ?? "Failed to submit complaint");
+      }
+    } catch (e) {
+      _showError("Server Connection Error");
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  void _showError(String msg) {
     if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Complaint submitted successfully."),
-        backgroundColor: Colors.green,
-      ),
+      SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
     );
-
-    Navigator.pop(context);
   }
 
   @override
@@ -101,7 +154,7 @@ class _WorkerSubmitComplaintScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔹 Worker info (name + id)
+            // Worker Info Card
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),
@@ -130,7 +183,7 @@ class _WorkerSubmitComplaintScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.name,
+                          "For: ${widget.name}",
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -163,26 +216,7 @@ class _WorkerSubmitComplaintScreenState
                 hintText: "Enter title...",
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: themeBlue, width: 1.2),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(
-                    color: themeBlue,
-                    width: 1.2,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(
-                    color: themeBlue,
-                    width: 1.5,
-                  ),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
 
@@ -200,24 +234,11 @@ class _WorkerSubmitComplaintScreenState
                 hintText: "Describe your issue...",
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: themeBlue, width: 1.2),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: themeBlue, width: 1.2),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: themeBlue, width: 1.5),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
 
-            // Photo buttons
+            // Photo Selection
             const SizedBox(height: 18),
             Row(
               children: [
@@ -225,20 +246,8 @@ class _WorkerSubmitComplaintScreenState
                   child: ElevatedButton.icon(
                     onPressed: _pickFromCamera,
                     icon: const Icon(Icons.camera_alt, color: Colors.white),
-                    label: const Text(
-                      "Take Photo",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: themeBlue,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
+                    label: const Text("Take Photo", style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(backgroundColor: themeBlue),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -246,27 +255,13 @@ class _WorkerSubmitComplaintScreenState
                   child: OutlinedButton.icon(
                     onPressed: _pickFromGallery,
                     icon: Icon(Icons.upload, color: themeBlue),
-                    label: Text(
-                      "Upload Image",
-                      style: TextStyle(
-                        color: themeBlue,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: themeBlue, width: 1.3),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      backgroundColor: Colors.white,
-                    ),
+                    label: Text("Upload Image", style: TextStyle(color: themeBlue)),
+                    style: OutlinedButton.styleFrom(side: BorderSide(color: themeBlue)),
                   ),
                 ),
               ],
             ),
 
-            // optional selected image text
             if (_selectedImage != null) ...[
               const SizedBox(height: 8),
               Text(
@@ -275,7 +270,7 @@ class _WorkerSubmitComplaintScreenState
               ),
             ],
 
-            // Submit button
+            // Submit Button
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -284,22 +279,14 @@ class _WorkerSubmitComplaintScreenState
                 onPressed: _isSubmitting ? null : _submitComplaint,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: themeBlue,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 child: _isSubmitting
-                    ? const CircularProgressIndicator(
-                  color: Colors.white,
-                )
+                    ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
-                  "Submit Complaint",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                        "Submit Complaint",
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
               ),
             ),
           ],

@@ -5,11 +5,13 @@ import 'package:smartcare_app/screens/supervisor/worker_checkout_screen.dart';
 import 'package:smartcare_app/screens/supervisor/worker_submit_complaint_screen.dart';
 
 class WorkerProfileScreen extends StatelessWidget {
+  final String id; // The MongoDB _id of the worker
   final String name;
   final String userId;
 
   const WorkerProfileScreen({
     Key? key,
+    required this.id, // ✅ Required to link complaints to this specific worker
     required this.name,
     required this.userId,
   }) : super(key: key);
@@ -69,7 +71,6 @@ class WorkerProfileScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 2),
           Text(
             "Worker Profile",
             style: TextStyle(
@@ -169,7 +170,6 @@ class WorkerProfileScreen extends StatelessWidget {
     );
   }
 
-  // 🔹 Submit Complaint Card With Navigation
   Widget _buildComplaintCard(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -199,7 +199,7 @@ class WorkerProfileScreen extends StatelessWidget {
           const SizedBox(height: 8),
           const Text(
             "If the worker has any issue related to work, safety or attendance, "
-                "you can submit a complaint on their behalf.",
+            "you can submit a complaint on their behalf.",
             style: TextStyle(
               fontSize: 14,
               color: Colors.black54,
@@ -211,10 +211,12 @@ class WorkerProfileScreen extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () {
+                // ✅ PASSING THE ID to the submit screen
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => WorkerSubmitComplaintScreen(
+                      workerMongoId: id, // Passing the MongoDB ID
                       name: name,
                       userId: userId,
                     ),
