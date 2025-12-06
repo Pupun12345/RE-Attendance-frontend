@@ -3,15 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:smartcare_app/screens/supervisor/worker_checkin_screen.dart';
 import 'package:smartcare_app/screens/supervisor/worker_checkout_screen.dart';
 import 'package:smartcare_app/screens/supervisor/worker_submit_complaint_screen.dart';
+import 'package:smartcare_app/screens/supervisor/worker_overtime_submission_screen.dart';
 
 class WorkerProfileScreen extends StatelessWidget {
-  final String id; // The MongoDB _id of the worker
   final String name;
   final String userId;
 
   const WorkerProfileScreen({
     Key? key,
-    required this.id, // ✅ Required to link complaints to this specific worker
     required this.name,
     required this.userId,
   }) : super(key: key);
@@ -47,6 +46,8 @@ class WorkerProfileScreen extends StatelessWidget {
             _buildProfileCard(context),
             const SizedBox(height: 16),
             _buildComplaintCard(context),
+            const SizedBox(height: 16),
+            _buildOvertimeCard(context),
           ],
         ),
       ),
@@ -71,6 +72,7 @@ class WorkerProfileScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: 2),
           Text(
             "Worker Profile",
             style: TextStyle(
@@ -170,6 +172,7 @@ class WorkerProfileScreen extends StatelessWidget {
     );
   }
 
+
   Widget _buildComplaintCard(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -199,7 +202,7 @@ class WorkerProfileScreen extends StatelessWidget {
           const SizedBox(height: 8),
           const Text(
             "If the worker has any issue related to work, safety or attendance, "
-            "you can submit a complaint on their behalf.",
+                "you can submit a complaint on their behalf.",
             style: TextStyle(
               fontSize: 14,
               color: Colors.black54,
@@ -211,12 +214,10 @@ class WorkerProfileScreen extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () {
-                // ✅ PASSING THE ID to the submit screen
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => WorkerSubmitComplaintScreen(
-                      workerMongoId: id, // Passing the MongoDB ID
                       name: name,
                       userId: userId,
                     ),
@@ -225,6 +226,84 @@ class WorkerProfileScreen extends StatelessWidget {
               },
               icon: const Icon(Icons.report_problem_outlined),
               label: const Text("Submit Complaint"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeBlue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔹 Overtime Submission Card
+  Widget _buildOvertimeCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.12),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Overtime Submission",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            "Submit your overtime requests quickly and easily.",
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.black54,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => WorkerOvertimeSubmissionScreen(
+                      name: name,
+                      userId: userId,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(
+                Icons.play_arrow_rounded,
+                color: Colors.white,
+              ),
+              label: const Text(
+                "Overtime Submit",
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: themeBlue,
                 foregroundColor: Colors.white,

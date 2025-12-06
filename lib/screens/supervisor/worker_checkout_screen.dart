@@ -29,13 +29,14 @@ class _WorkerCheckOutScreenState extends State<WorkerCheckOutScreen> {
   File? _lastCapturedImage;
   final ImagePicker _picker = ImagePicker();
 
-  // 🔹 Pending state (offline mode)
+  // Pending state (offline mode)
   bool _isPending = false;
   File? _pendingImage;
   String? _pendingTime;
   String? _pendingLocation;
   String? _pendingAddress;
 
+  // FIX: correct type for connectivity subscription (List<ConnectivityResult>)
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   @override
@@ -109,7 +110,8 @@ class _WorkerCheckOutScreenState extends State<WorkerCheckOutScreen> {
 
   Future<void> _determinePositionAndListen() async {
     final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
+      desiredAccuracy: LocationAccuracy.high,
+    );
 
     setState(() {
       _locationText =
@@ -141,7 +143,7 @@ class _WorkerCheckOutScreenState extends State<WorkerCheckOutScreen> {
     }
   }
 
-  // 🔹 Mark pending on no network
+  // Mark pending on no network
   void _markPendingCheckout() {
     setState(() {
       _isPending = true;
@@ -159,16 +161,22 @@ class _WorkerCheckOutScreenState extends State<WorkerCheckOutScreen> {
     );
   }
 
-  // 🔹 Auto send when internet back
-  void _handleConnectivityChange(List<ConnectivityResult> result) {
+  // Auto send when internet back
+  void _handleConnectivityChange(List<ConnectivityResult> results) {
     if (!_isPending) return;
-    bool hasNetwork = result.any((r) => r != ConnectivityResult.none);
+
+    // check if any network is available in the list
+    final hasNetwork =
+    results.any((r) => r != ConnectivityResult.none);
     if (!hasNetwork) return;
+
+
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-            "Network restored. Pending checkout sent to admin for approval."),
+          "Network restored. Pending checkout sent to admin for approval.",
+        ),
         backgroundColor: Colors.green,
       ),
     );
@@ -182,13 +190,14 @@ class _WorkerCheckOutScreenState extends State<WorkerCheckOutScreen> {
     });
   }
 
-  // 🔹 Confirm Checkout
+  // Confirm Checkout
   void _confirmCheckOut() async {
     if (_lastCapturedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text("Please capture photo first"),
-            backgroundColor: Colors.red),
+          content: Text("Please capture photo first"),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -201,6 +210,7 @@ class _WorkerCheckOutScreenState extends State<WorkerCheckOutScreen> {
       return;
     }
 
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Checked Out Successfully!"),
@@ -209,8 +219,10 @@ class _WorkerCheckOutScreenState extends State<WorkerCheckOutScreen> {
     );
   }
 
-  // 🔹 Show pending details card
+  // Show pending details card
   void _showPendingDetails() {
+    if (_pendingImage == null) return;
+
     showDialog(
       context: context,
       builder: (_) => Dialog(
@@ -220,27 +232,42 @@ class _WorkerCheckOutScreenState extends State<WorkerCheckOutScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("Pending Check-Out",
-                  style: TextStyle(
-                      color: themeBlue,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16)),
+              Text(
+                "Pending Check-Out",
+                style: TextStyle(
+                  color: themeBlue,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
               const SizedBox(height: 12),
               CircleAvatar(
-                  radius: 60, backgroundImage: FileImage(_pendingImage!)),
+                radius: 60,
+                backgroundImage: FileImage(_pendingImage!),
+              ),
               const SizedBox(height: 12),
-              Text(_pendingTime ?? "", style: const TextStyle(fontSize: 14)),
+              Text(
+                _pendingTime ?? "",
+                style: const TextStyle(fontSize: 14),
+              ),
               const SizedBox(height: 8),
-              Text(_pendingAddress ?? "",
-                  style: const TextStyle(fontSize: 14)),
+              Text(
+                _pendingAddress ?? "",
+                style: const TextStyle(fontSize: 14),
+              ),
               const SizedBox(height: 4),
-              Text(_pendingLocation ?? "",
-                  style: const TextStyle(fontSize: 13)),
+              Text(
+                _pendingLocation ?? "",
+                style: const TextStyle(fontSize: 13),
+              ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text("Close", style: TextStyle(color: themeBlue)),
-              )
+                child: Text(
+                  "Close",
+                  style: TextStyle(color: themeBlue),
+                ),
+              ),
             ],
           ),
         ),
@@ -258,93 +285,109 @@ class _WorkerCheckOutScreenState extends State<WorkerCheckOutScreen> {
         backgroundColor: themeBlue,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () =>
-              Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const SupervisorDashboardScreen())),
+          onPressed: () => Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const SupervisorDashboardScreen(),
+            ),
+          ),
         ),
         centerTitle: true,
-        title: const Text("Punch",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        title: const Text(
+          "Punch",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
       ),
-
       body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
                   const Icon(Icons.access_time_outlined),
                   const SizedBox(width: 10),
                   Expanded(child: Text(_timeString)),
-                ]),
-                const SizedBox(height: 18),
-                Row(children: [
+                ],
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
                   const Icon(Icons.person_outline),
                   const SizedBox(width: 10),
                   Expanded(child: Text(_userName)),
-                ]),
-                const SizedBox(height: 30),
-                if (hasImage)
-                  Center(
-                    child: CircleAvatar(
-                      radius: 70,
-                      backgroundImage: FileImage(_lastCapturedImage!),
-                    ),
+                ],
+              ),
+              const SizedBox(height: 30),
+              if (hasImage)
+                Center(
+                  child: CircleAvatar(
+                    radius: 70,
+                    backgroundImage: FileImage(_lastCapturedImage!),
                   ),
-                const SizedBox(height: 200),
-              ],
-            ),
-          )),
+                ),
+              const SizedBox(height: 200),
+            ],
+          ),
+        ),
+      ),
 
       // 🔹 Footer
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Row(children: [
-              const Icon(Icons.location_on),
-              const SizedBox(width: 8),
-              Expanded(child: Text(_addressText)),
-            ]),
-            const SizedBox(height: 4),
-            Row(children: [
-              const Icon(Icons.gps_fixed),
-              const SizedBox(width: 6),
-              Expanded(child: Text(_locationText)),
-            ]),
-            const SizedBox(height: 8),
-
-            // 🔹 Button
-            SizedBox(
-              width: double.infinity,
-              height: 58,
-              child: ElevatedButton.icon(
-                onPressed:
-                _isPending ? _showPendingDetails
-                    : (hasImage ? _confirmCheckOut : _openCamera),
-                icon: Icon(
-                  _isPending ? Icons.hourglass_bottom : Icons.camera_alt,
-                  color: Colors.white,
-                ),
-                label: Text(
-                  _isPending
-                      ? "Pending"
-                      : (hasImage ? "Confirm Check Out" : "Check Out"),
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                  _isPending ? Colors.orange.shade700 : themeBlue,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30)),
-                ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.location_on),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_addressText)),
+                ],
               ),
-            )
-          ]),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.gps_fixed),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(_locationText)),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              SizedBox(
+                width: double.infinity,
+                height: 58,
+                child: ElevatedButton.icon(
+                  onPressed: _isPending
+                      ? _showPendingDetails
+                      : (hasImage ? _confirmCheckOut : _openCamera),
+                  icon: Icon(
+                    _isPending ? Icons.hourglass_bottom : Icons.camera_alt,
+                    color: Colors.white,
+                  ),
+                  label: Text(
+                    _isPending
+                        ? "Pending"
+                        : (hasImage ? "Confirm Check Out" : "Check Out"),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                    _isPending ? Colors.orange.shade700 : themeBlue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                ),
+              )
+            ],
+          ),
         ),
       ),
     );

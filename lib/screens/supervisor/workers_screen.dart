@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:smartcare_app/utils/constants.dart';
 import 'package:smartcare_app/screens/supervisor/supervisor_dashboard_screen.dart';
-import 'package:smartcare_app/screens/supervisor/worker_profile_screen.dart';
+import 'package:smartcare_app/screens/supervisor/worker_profile_screen.dart'; // ← ADDED
 
 class Worker {
   final String id;
@@ -233,7 +233,7 @@ class _WorkersScreenState extends State<WorkersScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) =>
-                      WorkerProfileScreen(id: worker.id, name: worker.name, userId: worker.userId),
+                      WorkerProfileScreen(name: worker.name, userId: worker.userId),
                 ),
               );
             },
