@@ -8,11 +8,13 @@ import 'package:smartcare_app/screens/supervisor/worker_overtime_submission_scre
 class WorkerProfileScreen extends StatelessWidget {
   final String name;
   final String userId;
+  final String dbId; // ✅ Added this field
 
   const WorkerProfileScreen({
     Key? key,
     required this.name,
     required this.userId,
+    required this.dbId, // ✅ Added to constructor
   }) : super(key: key);
 
   final Color themeBlue = const Color(0xFF0B3B8C);
@@ -220,6 +222,7 @@ class WorkerProfileScreen extends StatelessWidget {
                     builder: (_) => WorkerSubmitComplaintScreen(
                       name: name,
                       userId: userId,
+                      dbId: dbId, // ✅ Passing the DB ID here fixed the error
                     ),
                   ),
                 );
@@ -241,7 +244,6 @@ class WorkerProfileScreen extends StatelessWidget {
     );
   }
 
-  // 🔹 Overtime Submission Card
   Widget _buildOvertimeCard(BuildContext context) {
     return Container(
       width: double.infinity,
