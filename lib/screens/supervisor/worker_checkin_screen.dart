@@ -9,6 +9,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'package:smartcare_app/utils/constants.dart';
 import 'package:smartcare_app/screens/supervisor/supervisor_dashboard_screen.dart';
 
 class WorkerCheckInScreen extends StatefulWidget {
@@ -19,20 +21,33 @@ class WorkerCheckInScreen extends StatefulWidget {
 }
 
 class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
+
+    static const int _maxRetries = 2;
+
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+
+  
+
   final Color themeBlue = const Color(0xFF0B3B8C);
   String _timeString = "";
-  Timer? _timer; // ✅ Variable declared as _timer
+  Timer? _timer;
 
-  // User data
+  // ---------------- USER DATA ----------------
   String _userName = "umesh";
   String _userId = "EMP001";
+  String _supervisorId = "SUP001";
 
+  // ---------------- LOCATION DATA ----------------
   String _locationText = "Fetching location...";
   String _addressText = "Fetching address...";
+  double? _currentLat;
+  double? _currentLng;
+
+  // ---------------- IMAGE ----------------
   File? _lastCapturedImage;
   final ImagePicker _picker = ImagePicker();
 
-  // Pending state
+  // ---------------- PENDING STATE (UI ONLY) ----------------
   bool _isPending = false;
   File? _pendingImage;
   String? _pendingTime;
@@ -41,38 +56,63 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
   String? _pendingName;
   String? _pendingUserId;
 
-  // Pending countdown like Paytm
   Timer? _pendingTimer;
   int _pendingSecondsLeft = 0;
-  bool _pendingEscalated = false; // true => send to admin, false => auto-confirm
+  bool _pendingEscalated = false; // final stuck state after 2nd attempt
+  int _offlineTryCount = 0;       // 0 = none, 1 = first try done, >=2 = second/final
 
-  // CONNECTIVITY STREAM (connectivity_plus 6.x)
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+ 
+  // SharedPrefs key for JSON queue
+  static const String _pendingQueueKey = 'pending_attendance_queue';
 
   @override
   void initState() {
     super.initState();
+    _listenToNetwork();  
     _startClock();
-    _loadUserName();
+    _loadUserData();
     _determinePositionAndListen();
 
     _connectivitySub =
         Connectivity().onConnectivityChanged.listen(_handleConnectivityChange);
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _pendingTimer?.cancel();
-    _connectivitySub?.cancel();
-    super.dispose();
-  }
+ @override
+void dispose() {
+  _connectivitySub?.cancel();
+  super.dispose();
+}
 
-  // Start realtime clock (updates every second)
+
+
+ 
+
+void _listenToNetwork() {
+  _connectivitySub = Connectivity()
+      .onConnectivityChanged
+      .listen((List<ConnectivityResult> results) {
+    print("📡 Connectivity changed: $results");
+
+    final hasConnection = results.contains(ConnectivityResult.mobile) ||
+        results.contains(ConnectivityResult.wifi);
+
+    if (hasConnection) {
+      print("✅ Online again, syncing pending attendance...");
+      _syncPendingAttendance();
+    }
+  });
+}
+
+
+
+
+
+  // ----------------------------------------------------------
+  // REAL TIME CLOCK
+  // ----------------------------------------------------------
   void _startClock() {
     _updateTime();
-    // ✅ FIXED: Used '_timer' and added '(t)' to callback
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) => _updateTime());
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
   }
 
   void _updateTime() {
@@ -107,7 +147,10 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
     return months[m - 1];
   }
 
-  Future<void> _loadUserName() async {
+  // ----------------------------------------------------------
+  // LOAD USER + SUPERVISOR DATA FROM STORAGE
+  // ----------------------------------------------------------
+  Future<void> _loadUserData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userString = prefs.getString('user');
@@ -130,6 +173,10 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                   userData['userId'].toString().trim().isNotEmpty) {
                 _userId = userData['userId'].toString();
               }
+              if (userData['supervisorId'] != null &&
+                  userData['supervisorId'].toString().trim().isNotEmpty) {
+                _supervisorId = userData['supervisorId'].toString();
+              }
             });
             return;
           }
@@ -138,6 +185,7 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
 
       final nameKey = prefs.getString('name');
       final idKey = prefs.getString('userId');
+      final supKey = prefs.getString('supervisorId');
 
       setState(() {
         if (nameKey != null && nameKey.trim().isNotEmpty) {
@@ -146,12 +194,18 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
         if (idKey != null && idKey.trim().isNotEmpty) {
           _userId = idKey;
         }
+        if (supKey != null && supKey.trim().isNotEmpty) {
+          _supervisorId = supKey;
+        }
       });
     } catch (_) {
-      // ignore and keep defaults
+      // keep defaults
     }
   }
 
+  // ----------------------------------------------------------
+  // ADDRESS / LOCATION
+  // ----------------------------------------------------------
   Future<void> _updateAddress(double lat, double lng) async {
     try {
       final placemarks = await placemarkFromCoordinates(lat, lng);
@@ -179,7 +233,6 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
     }
   }
 
-  // Get location and listen for updates
   Future<void> _determinePositionAndListen() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -211,11 +264,13 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
         return;
       }
 
-      // initial position
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
       );
       if (!mounted) return;
+
+      _currentLat = pos.latitude;
+      _currentLng = pos.longitude;
 
       setState(() {
         _locationText =
@@ -223,7 +278,6 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
       });
       _updateAddress(pos.latitude, pos.longitude);
 
-      // listen for position changes
       Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.low,
@@ -231,6 +285,8 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
         ),
       ).listen((Position position) {
         if (!mounted) return;
+        _currentLat = position.latitude;
+        _currentLng = position.longitude;
         setState(() {
           _locationText =
               "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
@@ -246,6 +302,9 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
     }
   }
 
+  // ----------------------------------------------------------
+  // CAMERA
+  // ----------------------------------------------------------
   Future<void> _openCamera() async {
     try {
       final picked = await _picker.pickImage(
@@ -254,7 +313,7 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
         imageQuality: 80,
       );
       if (picked == null) {
-        return; // user cancelled
+        return;
       }
 
       setState(() {
@@ -262,17 +321,149 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Failed to open camera"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnack("Failed to open camera", Colors.red);
     }
   }
 
-  // Mark attendance as pending (no internet)
-  void _markPending() {
+  // ----------------------------------------------------------
+  // HELPERS (TOKEN + SNACKBAR)
+  // ----------------------------------------------------------
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
+  void _showSnack(String msg, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: color,
+      ),
+    );
+  }
+
+  // ----------------------------------------------------------
+  // OFFLINE QUEUE (PHONE STORAGE JSON)
+  // ----------------------------------------------------------
+  Future<List<Map<String, dynamic>>> _loadPendingQueue() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_pendingQueueKey);
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded
+            .map<Map<String, dynamic>>(
+                (e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _savePendingQueue(List<Map<String, dynamic>> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_pendingQueueKey, jsonEncode(list));
+  }
+
+  /// Save record in local queue (worker id, supervisor, time, location, image path)
+  Future<void> _addPendingRecordToStorage() async {
+    if (_lastCapturedImage == null) return;
+
+    final queue = await _loadPendingQueue();
+
+    final record = <String, dynamic>{
+      "userId": _userId,
+      "userName": _userName,
+      "supervisorId": _supervisorId,
+      "timeLabel": _timeString,
+      "createdAt": DateTime.now().toIso8601String(),
+      "address": _addressText,
+      "locationLabel": _locationText,
+      "lat": _currentLat,
+      "lng": _currentLng,
+      "imagePath": _lastCapturedImage!.path,
+    };
+
+    queue.add(record); // FIFO
+    await _savePendingQueue(queue);
+  }
+
+  /// When network comes back, push all pending JSON to backend FIFO
+  Future<int> _syncPendingQueueToBackend() async {
+    final queue = await _loadPendingQueue();
+    if (queue.isEmpty) return 0;
+
+    final token = await _getToken();
+    if (token == null) return 0;
+
+    final List<Map<String, dynamic>> remaining = [];
+    int uploadedCount = 0;
+
+    for (final item in queue) {
+      try {
+        final imgPath = item['imagePath'] as String?;
+        if (imgPath == null) continue;
+
+        final file = File(imgPath);
+        if (!await file.exists()) continue;
+
+        final imgBytes = await file.readAsBytes();
+        final imgBase64 = base64Encode(imgBytes);
+
+        // DUMMY Pending Attendance API
+        final url = Uri.parse('$apiBaseUrl/api/v1/attendance/pending');
+
+        final body = {
+          "userId": item['userId'],
+          "userName": item['userName'],
+          "supervisorId": item['supervisorId'],
+          "timeLabel": item['timeLabel'],
+          "createdAt": item['createdAt'],
+          "address": item['address'],
+          "locationLabel": item['locationLabel'],
+          "lat": item['lat'],
+          "lng": item['lng'],
+          "imageBase64": imgBase64,
+        };
+
+        final res = await http.post(
+          url,
+          headers: {
+            HttpHeaders.contentTypeHeader: 'application/json',
+            HttpHeaders.authorizationHeader: 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        );
+
+        if (res.statusCode == 200 || res.statusCode == 201) {
+          uploadedCount++;
+        } else {
+          remaining.add(item);
+        }
+      } catch (_) {
+        remaining.add(item);
+      }
+    }
+
+    await _savePendingQueue(remaining);
+
+    if (uploadedCount > 0 && remaining.isEmpty) {
+      _clearPending();
+    }
+
+    return uploadedCount;
+  }
+
+  // ----------------------------------------------------------
+  // PENDING MODE (1st + 2nd ATTEMPT)
+  // ----------------------------------------------------------
+
+  /// Common pending cycle. allowReset = true for 1st time, false for 2nd time.
+  void _startPendingCycle({required bool allowReset}) {
     _pendingTimer?.cancel();
 
     setState(() {
@@ -283,13 +474,11 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
       _pendingAddress = _addressText;
       _pendingName = _userName;
       _pendingUserId = _userId;
-
       _pendingEscalated = false;
-      _pendingSecondsLeft = 30; // countdown like Paytm
+      _pendingSecondsLeft = 30;
     });
 
-    _pendingTimer =
-        Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+    _pendingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
@@ -298,19 +487,21 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
         if (_pendingSecondsLeft > 0) {
           _pendingSecondsLeft--;
         } else {
-          // countdown finished -> now it is "stuck" like Paytm payment
-          _pendingEscalated = true;
           timer.cancel();
+          if (allowReset) {
+            // 1st try over -> back to normal "Confirm Check In"
+            _isPending = false;
+            _pendingSecondsLeft = 0;
+            _pendingEscalated = false;
+          } else {
+            // 2nd try over -> stuck pending until network comes (Paytm style)
+            _pendingEscalated = true;
+            _pendingSecondsLeft = 0;
+            // _isPending stays true -> button shows "Pending - Waiting for network"
+          }
         }
       });
     });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("No internet. Attendance saved as pending."),
-        backgroundColor: Colors.orange,
-      ),
-    );
   }
 
   void _clearPending() {
@@ -326,85 +517,237 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
       _pendingUserId = null;
       _pendingSecondsLeft = 0;
       _pendingEscalated = false;
+      _offlineTryCount = 0;
     });
   }
 
-  // Handle connectivity change (LIST VERSION for connectivity_plus 6.x)
-  void _handleConnectivityChange(List<ConnectivityResult> results) {
-    if (!_isPending || _pendingImage == null) return;
-
+  // ----------------------------------------------------------
+  // CONNECTIVITY HANDLER
+  // ----------------------------------------------------------
+  void _handleConnectivityChange(List<ConnectivityResult> results) async {
     final bool hasConnection =
         results.any((r) => r != ConnectivityResult.none);
 
-    if (!hasConnection) return;
-    if (!mounted) return;
+    if (!hasConnection || !mounted) return;
 
-    // Network aa gaya: Paytm-style settlement
-    if (!_pendingEscalated) {
-      // within countdown -> treat as success, real-time attendance confirmed
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Network restored. Attendance confirmed in system.",
-          ),
-          backgroundColor: Colors.green,
-        ),
+    final uploaded = await _syncPendingQueueToBackend();
+
+    if (uploaded > 0) {
+      _showSnack(
+        "Network restored. $uploaded pending attendance(s) sent to admin.",
+        Colors.green,
       );
-      // yahan real API call laga sakte ho for auto-confirm
-    } else {
-      // countdown ke baad bhi network nahi tha, ab aya -> send to admin
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Network restored late. Attendance sent to admin for approval.",
-          ),
-          backgroundColor: Colors.deepOrange,
-        ),
-      );
-      // yahan admin ke liye offline record upload ka API laga sakte ho
     }
-
-    _clearPending();
   }
 
-  void _confirmCheckIn() async {
-    if (_lastCapturedImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please capture photo first."),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+  // ----------------------------------------------------------
+  // ----------------------------------------------------------
+// ONLINE CHECK-IN (DIRECT ATTENDANCE API)
+// ----------------------------------------------------------
+
+
+Future<void> _sendOnlineAttendance({int retry = 0}) async {
+  final token = await _getToken();
+  if (token == null) {
+    _showSnack("Not authorized", Colors.redAccent);
+    return;
+  }
+
+  if (_lastCapturedImage == null) {
+    _showSnack("Please capture photo first.", Colors.redAccent);
+    return;
+  }
+
+  try {
+    final uri = Uri.parse('$apiBaseUrl/api/v1/attendance/checkin');
+
+    final req = http.MultipartRequest('POST', uri);
+    req.headers[HttpHeaders.authorizationHeader] = 'Bearer $token';
+
+    req.fields['location'] = _addressText;
+    if (_currentLat != null) req.fields['lat'] = _currentLat!.toString();
+    if (_currentLng != null) req.fields['lng'] = _currentLng!.toString();
+
+    req.files.add(await http.MultipartFile.fromPath(
+      'attendanceImage',
+      _lastCapturedImage!.path,
+    ));
+
+    final streamed = await req.send();
+    final res = await http.Response.fromStream(streamed);
+
+    print("CHECKIN STATUS = ${res.statusCode}");
+    print("CHECKIN BODY = ${res.body}");
+
+    // SUCCESS
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      _showSnack("Checked in successfully!", Colors.green);
       return;
     }
 
-    // Check network
+    // SERVER reachable but error (4xx/5xx)
+    _showSnack(
+        jsonDecode(res.body)['message'] ?? "Server error", Colors.orange);
+    return;
+
+  } on SocketException catch (_) {
+  print("🌐 No Internet - Retry #$retry");
+
+  if (retry < _maxRetries) {
+    await Future.delayed(const Duration(seconds: 30));
+    return _sendOnlineAttendance(retry: retry + 1);
+  }
+
+  // 🔴 2 retries fail -> local pending + backend pending sync
+  await _savePendingAttendanceLocally();
+  _showSnack(
+    "Network issue. Marked as pending for admin.",
+    Colors.orange,
+  );
+
+  // Yahin se try karo backend pending API ko call karne ka
+  // (agar abhi tak net aa gaya ho to turant admin me dikhega)
+  await _syncPendingAttendance();
+
+  return;
+}
+ catch (e) {
+    _showSnack("Unexpected error: $e", Colors.redAccent);
+  }
+}
+
+Future<void> _savePendingAttendanceLocally() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  final data = {
+    "workerId": _userId,
+    "location": _addressText,
+    "dateTime": DateTime.now().toIso8601String(),
+    "imagePath": _lastCapturedImage!.path
+  };
+
+  List<String> list = prefs.getStringList("pending_attendance") ?? [];
+  list.add(jsonEncode(data));
+  await prefs.setStringList("pending_attendance", list);
+
+  print("📌 Pending attendance saved locally.");
+}
+
+Future<void> _syncPendingAttendance() async {
+  final prefs = await SharedPreferences.getInstance();
+  List<String> list = prefs.getStringList("pending_attendance") ?? [];
+
+  if (list.isEmpty) {
+    print("✅ No pending attendance to sync.");
+    return;
+  }
+
+  final token = await _getToken();
+  if (token == null) {
+    print("⚠️ No token found, cannot sync pending attendance.");
+    return;
+  }
+
+  final uri = Uri.parse(
+    '$apiBaseUrl/api/v1/attendance/supervisor/checkin-pending',
+  );
+  final remaining = <String>[];
+
+  for (final item in list) {
+    final data = jsonDecode(item);
+
+    try {
+      final imagePath = data["imagePath"] as String?;
+
+      if (imagePath == null || !File(imagePath).existsSync()) {
+        // Image file missing → skip this record permanently
+        print("⚠️ Image file missing for pending item, dropping it.");
+        continue;
+      }
+
+      final req = http.MultipartRequest("POST", uri);
+      req.headers[HttpHeaders.authorizationHeader] = 'Bearer $token';
+
+      req.fields["workerId"] = data["workerId"];
+      req.fields["location"] = data["location"] ?? "";
+      req.fields["dateTime"] = data["dateTime"] ?? "";
+
+      req.files.add(
+        await http.MultipartFile.fromPath(
+          "attendanceImage",
+          imagePath,
+        ),
+      );
+
+      final streamed = await req.send();
+      final res = await http.Response.fromStream(streamed);
+
+      print(
+          "📤 Sync pending -> status: ${res.statusCode}, body: ${res.body}");
+
+      if (res.statusCode != 200 && res.statusCode != 201) {
+        // server ne accept nahi kiya → queue me wapas daal do
+        remaining.add(item);
+      }
+    } catch (e) {
+      print("❌ Error syncing pending attendance: $e");
+      remaining.add(item); // network ya koi aur error → next time try karenge
+    }
+  }
+
+  await prefs.setStringList("pending_attendance", remaining);
+
+  if (remaining.isEmpty) {
+    print("🎉 All pending attendance synced successfully!");
+  } else {
+    print("⌛ ${remaining.length} pending records still in queue.");
+  }
+}
+
+
+  // ----------------------------------------------------------
+  // BUTTON HANDLER
+  // ----------------------------------------------------------
+  void _confirmCheckIn() async {
+    if (_lastCapturedImage == null) {
+      _showSnack("Please capture photo first.", Colors.redAccent);
+      return;
+    }
+
     final connectivity = await Connectivity().checkConnectivity();
     final bool hasInternet = connectivity != ConnectivityResult.none;
 
     if (!hasInternet) {
-      // No internet -> go to pending mode
-      _markPending();
+      // ---------- OFFLINE FLOW ----------
+      _offlineTryCount++;
+
+      if (_offlineTryCount == 1) {
+        // 1st time offline -> save record + countdown, then back to "Confirm Check In"
+        await _addPendingRecordToStorage();
+        _showSnack(
+          "No internet. Attendance stored as pending (1st attempt).",
+          Colors.orange,
+        );
+        _startPendingCycle(allowReset: true);
+      } else {
+        // 2nd time (or more) offline -> countdown, then stuck pending until network
+        _showSnack(
+          "No internet again. Check-in will stay pending until network is back.",
+          Colors.deepOrange,
+        );
+        _startPendingCycle(allowReset: false);
+      }
       return;
     }
 
-    // Internet available -> normal real-time attendance (API call yahan)
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Checked in successfully!"),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    // Example: navigate back to dashboard if needed
-    // Navigator.pushReplacement(
-    //   context,
-    //   MaterialPageRoute(builder: (_) => const SupervisorDashboardScreen()),
-    // );
+    // ---------- ONLINE FLOW ----------
+    _offlineTryCount = 0; // reset tries when internet is available
+    await _sendOnlineAttendance();
   }
 
-  // Show Pending Details Card (photo + name + id + time + location)
+  // ----------------------------------------------------------
+  // PENDING DETAILS DIALOG
+  // ----------------------------------------------------------
   void _showPendingDetails() {
     showDialog(
       context: context,
@@ -430,8 +773,6 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                   backgroundImage: FileImage(_pendingImage!),
                 ),
               const SizedBox(height: 16),
-
-              // Name + ID
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -449,7 +790,6 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                 ],
               ),
               const SizedBox(height: 10),
-
               Row(
                 children: [
                   const Icon(Icons.access_time, size: 18),
@@ -510,6 +850,9 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
     );
   }
 
+  // ----------------------------------------------------------
+  // UI
+  // ----------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final bool hasImage = _lastCapturedImage != null;
@@ -541,7 +884,6 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Time row
               Row(
                 children: [
                   const Icon(Icons.access_time_outlined,
@@ -559,8 +901,6 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                 ],
               ),
               const SizedBox(height: 18),
-
-              // User name + ID row
               Row(
                 children: [
                   const Icon(Icons.person_outline,
@@ -577,10 +917,7 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 30),
-
-              // Photo preview in circle
               if (hasImage) ...[
                 Center(
                   child: CircleAvatar(
@@ -591,14 +928,11 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                 ),
                 const SizedBox(height: 20),
               ],
-
               const SizedBox(height: 200),
             ],
           ),
         ),
       ),
-
-      // FOOTER: Address + Lat/Long + Button
       bottomNavigationBar: SafeArea(
         child: Container(
           color: Colors.transparent,
@@ -606,7 +940,6 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Address + Lat/Long stacked
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
@@ -614,7 +947,6 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Real-time GPS location (human readable)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -633,7 +965,6 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // Lat / Lng
                     Row(
                       children: [
                         const Icon(Icons.gps_fixed,
@@ -653,10 +984,7 @@ class _WorkerCheckInScreenState extends State<WorkerCheckInScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 8),
-
-              // Check In / Confirm Check In / Pending button
               SizedBox(
                 height: 58,
                 width: double.infinity,

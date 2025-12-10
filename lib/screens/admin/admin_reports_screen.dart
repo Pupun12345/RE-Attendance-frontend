@@ -1,4 +1,4 @@
-// lib/screens/admin_reports_screen.dart
+// lib/screens/admin/admin_reports_screen.dart
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,7 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:csv/csv.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_picker/file_picker.dart'; 
 import 'package:intl/intl.dart';
 
 import 'package:smartcare_app/utils/constants.dart';
@@ -23,24 +23,18 @@ class AdminReportsScreen extends StatefulWidget {
 class _AdminReportsScreenState extends State<AdminReportsScreen> {
   final Color primaryBlue = const Color(0xFF0D47A1);
   final Color lightBlue = const Color(0xFFE3F2FD);
-  bool _isExporting = false;
 
-  final Map<String, bool> _selectedReports = {
-    "Daily Attendance Report": false,
-    "Monthly Attendance Summary": false,
-    "Complaint Reports": false,
-  };
+  bool _isDailyExporting = false;
+  bool _isMonthlyExporting = false;
 
-  void _toggleSelection(String key) {
-    setState(() {
-      _selectedReports[key] = !_selectedReports[key]!;
-    });
-  }
+  DateTime? _monthlyFromDate;
+  DateTime? _monthlyToDate;
 
-  // ✅ --- 1. HELPER TO SAVE THE FILE ---
+  // ==========================
+  // 1. SAVE CSV FILE
+  // ==========================
   Future<void> _saveCsvFile(String csvData, String suggestedFileName) async {
     try {
-      // Show "Save As..." dialog
       String? outputPath = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Report As',
         fileName: suggestedFileName,
@@ -49,306 +43,316 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       );
 
       if (outputPath != null) {
-        // Ensure it has the .csv extension
-        if (!outputPath.endsWith('.csv')) {
+        if (!outputPath.toLowerCase().endsWith('.csv')) {
           outputPath += '.csv';
         }
+        
         final File file = File(outputPath);
         await file.writeAsString(csvData);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Report saved successfully to $outputPath"),
+              content: Text("Report saved to: $outputPath"),
               backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
             ),
           );
         }
-      } else {
-        // User cancelled the save dialog
-        _showError("File save cancelled.");
       }
     } catch (e) {
       _showError("Error saving file: ${e.toString()}");
     }
   }
 
-  // ✅ --- 2. CSV GENERATOR FUNCTIONS ---
-
-  String _generateDailyAttendanceCSV(List<dynamic> data) {
+  // ==========================
+  // 2. CSV GENERATOR: DAILY
+  // ==========================
+  String _generateDailyCSV(List<dynamic> data) {
     final List<List<dynamic>> rows = [];
+
     rows.add([
-      'User ID',
-      'Name',
-      'Date',
-      'Check-In',
-      'Check-Out',
-      'Status',
+      'S.No', 'User ID', 'Name', 'Role', 'Date', 'Status', 
+      'Check-In', 'Check-Out', 'Location', 'Notes'
     ]);
 
-    for (var record in data) {
+    for (int i = 0; i < data.length; i++) {
+      final record = data[i] ?? {};
+      final user = record['user'] ?? {};
+
+      final String userId = user['userId'] ?? 'N/A';
+      final String name = user['name'] ?? 'N/A';
+      final String role = user['role'] ?? 'N/A';
+      
+      String dateStr = 'N/A';
+      if (record['date'] != null) {
+        dateStr = DateFormat('yyyy-MM-dd').format(DateTime.parse(record['date']));
+      }
+
+      final String status = (record['status'] ?? 'Absent').toString().toUpperCase();
+
+      String checkIn = '--:--';
+      if (record['checkInTime'] != null) {
+        checkIn = DateFormat('hh:mm a').format(DateTime.parse(record['checkInTime']));
+      }
+
+      String checkOut = '--:--';
+      if (record['checkOutTime'] != null) {
+        checkOut = DateFormat('hh:mm a').format(DateTime.parse(record['checkOutTime']));
+      }
+
+      final String location = record['checkInLocation'] ?? record['location'] ?? 'N/A';
+      final String notes = record['notes'] ?? '';
+
       rows.add([
-        record['user']?['userId'] ?? 'N/A',
-        record['user']?['name'] ?? 'N/A',
-        record['date'] != null
-            ? DateFormat('yyyy-MM-dd').format(DateTime.parse(record['date']))
-            : 'N/A',
-        record['checkInTime'] != null
-            ? DateFormat('hh:mm a')
-            .format(DateTime.parse(record['checkInTime']))
-            : '',
-        record['checkOutTime'] != null
-            ? DateFormat('hh:mm a')
-            .format(DateTime.parse(record['checkOutTime']))
-            : '',
-        record['status'] ?? 'N/A',
+        i + 1, userId, name, role, dateStr, status, checkIn, checkOut, location, notes
       ]);
     }
+
     return const ListToCsvConverter().convert(rows);
   }
 
-  String _generateMonthlySummaryCSV(List<dynamic> data) {
+  // ==========================
+  // 3. CSV GENERATOR: MONTHLY (SUMMARY)
+  // ==========================
+  String _generateMonthlyCSV(List<dynamic> data, String from, String to) {
     final List<List<dynamic>> rows = [];
+
+    rows.add(['Attendance Summary Report', 'From: $from', 'To: $to']);
+    rows.add([]); // Empty row for spacing
+
     rows.add([
-      'User ID',
-      'Name',
-      'Present Days',
-      'Absent Days',
-      'Leave Days',
+      'S.No', 'User ID', 'Name', 'Role', 
+      'Present Days', 'Absent Days', 'Leave Days', 'Total Days'
     ]);
 
-    for (var summary in data) {
+    for (int i = 0; i < data.length; i++) {
+      final record = data[i] ?? {};
+
+      final String userId = record['userId'] ?? 'N/A';
+      final String name = record['name'] ?? 'N/A';
+      final String role = record['role'] ?? 'N/A';
+      
+      final int present = record['presentDays'] ?? 0;
+      final int absent = record['absentDays'] ?? 0;
+      final int leave = record['leaveDays'] ?? 0;
+      final int total = present + absent + leave;
+
       rows.add([
-        summary['userId'] ?? 'N/A',
-        summary['name'] ?? 'N/A',
-        summary['presentDays'] ?? 0,
-        summary['absentDays'] ?? 0,
-        summary['leaveDays'] ?? 0,
+        i + 1, userId, name, role, present, absent, leave, total
       ]);
     }
+
     return const ListToCsvConverter().convert(rows);
   }
 
-  String _generateComplaintReportCSV(List<dynamic> data) {
-    final List<List<dynamic>> rows = [];
-    rows.add([
-      'Submitted By (ID)',
-      'Submitted By (Name)',
-      'Title',
-      'Description',
-      'Status',
-      'Date Submitted',
-    ]);
+  // ==========================
+  // 4. API CALLS
+  // ==========================
 
-    for (var complaint in data) {
-      rows.add([
-        complaint['user']?['userId'] ?? 'N/A',
-        complaint['user']?['name'] ?? 'N/A',
-        complaint['title'] ?? 'N/A',
-        complaint['description'] ?? 'N/A',
-        complaint['status'] ?? 'N/A',
-        complaint['createdAt'] != null
-            ? DateFormat('yyyy-MM-dd')
-            .format(DateTime.parse(complaint['createdAt']))
-            : 'N/A',
-      ]);
+  Future<void> _exportDailyReport() async {
+    if (_isDailyExporting) return;
+    setState(() => _isDailyExporting = true);
+
+    try {
+      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      
+      final data = await _fetchDataFromApi(
+        "/api/v1/reports/attendance/daily?startDate=$todayStr&endDate=$todayStr"
+      );
+
+      if (data != null && data.isNotEmpty) {
+        final csvData = _generateDailyCSV(data);
+        final fileName = 'Daily_Attendance_$todayStr.csv';
+        await _saveCsvFile(csvData, fileName);
+      }
+    } finally {
+      if (mounted) setState(() => _isDailyExporting = false);
     }
-    return const ListToCsvConverter().convert(rows);
   }
 
-  // ✅ --- 3. EXPORT FUNCTION ---
-  void _exportReports() async {
-    final selected =
-    _selectedReports.entries.where((e) => e.value).map((e) => e.key).toList();
+  Future<void> _exportMonthlyReport() async {
+    if (_isMonthlyExporting) return;
 
-    if (selected.isEmpty) {
-      _showError("Please select at least one report to export.");
+    if (_monthlyFromDate == null || _monthlyToDate == null) {
+      _showError("Please select From and To dates.");
+      return;
+    }
+    if (_monthlyFromDate!.isAfter(_monthlyToDate!)) {
+      _showError("From Date cannot be after To Date.");
       return;
     }
 
-    setState(() => _isExporting = true);
+    setState(() => _isMonthlyExporting = true);
 
+    try {
+      final fromStr = DateFormat('yyyy-MM-dd').format(_monthlyFromDate!);
+      final toStr = DateFormat('yyyy-MM-dd').format(_monthlyToDate!);
+
+      final data = await _fetchDataFromApi(
+        "/api/v1/reports/attendance/monthly?startDate=$fromStr&endDate=$toStr"
+      );
+
+      if (data != null && data.isNotEmpty) {
+        final csvData = _generateMonthlyCSV(data, fromStr, toStr);
+        final fileName = 'Summary_Report_${fromStr}_to_$toStr.csv';
+        await _saveCsvFile(csvData, fileName);
+      }
+    } finally {
+      if (mounted) setState(() => _isMonthlyExporting = false);
+    }
+  }
+
+  // Shared API Fetcher
+  Future<List<dynamic>?> _fetchDataFromApi(String endpoint) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
       if (token == null) {
-        _showError("Not authorized.");
-        setState(() => _isExporting = false);
-        return;
+        _showError("Not authorized. Please login again.");
+        return null;
       }
 
-      final Map<String, String> reportEndpoints = {
-        "Daily Attendance Report":
-        "/api/v1/reports/attendance/daily?startDate=2024-01-01&endDate=2025-12-31",
-        "Monthly Attendance Summary":
-        "/api/v1/reports/attendance/monthly?month=11&year=2025",
-        "Complaint Reports": "/api/v1/reports/complaints",
-      };
+      final url = Uri.parse('$apiBaseUrl$endpoint');
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
 
-      List<String> successfulReports = [];
-
-      for (String reportName in selected) {
-        if (reportEndpoints.containsKey(reportName)) {
-          final url = Uri.parse('$apiBaseUrl${reportEndpoints[reportName]}');
-          final response = await http.get(
-            url,
-            headers: {'Authorization': 'Bearer $token'},
-          );
-
-          if (response.statusCode == 200) {
-            final data = jsonDecode(response.body)['data'];
-            String csvData = '';
-            String fileName = '';
-
-            if (reportName == "Daily Attendance Report") {
-              csvData = _generateDailyAttendanceCSV(data);
-              fileName = 'daily_attendance_report.csv';
-            } else if (reportName == "Monthly Attendance Summary") {
-              csvData = _generateMonthlySummaryCSV(data);
-              fileName = 'monthly_summary_report.csv';
-            } else if (reportName == "Complaint Reports") {
-              csvData = _generateComplaintReportCSV(data);
-              fileName = 'complaint_report.csv';
-            }
-
-            await _saveCsvFile(csvData, fileName);
-            successfulReports.add(reportName);
-          } else {
-            _showError("Failed to fetch '$reportName'.");
-          }
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final data = body['data'] as List<dynamic>? ?? [];
+        
+        if (data.isEmpty) {
+          _showError("No data found for the selected period.");
+          return null;
         }
-      }
-
-      if (successfulReports.isEmpty) {
-        _showError("Failed to fetch any reports.");
+        return data;
+      } else {
+        final err = jsonDecode(response.body);
+        _showError(err['message'] ?? "Failed to fetch report.");
+        return null;
       }
     } catch (e) {
-      _showError("An error occurred during export: ${e.toString()}");
-    } finally {
-      if (mounted) {
-        setState(() => _isExporting = false);
-      }
+      _showError("Connection error: $e");
+      return null;
+    }
+  }
+
+  // ==========================
+  // 5. UI COMPONENTS
+  // ==========================
+
+  Future<void> _pickMonthlyDate({required bool isFrom}) async {
+    final now = DateTime.now();
+    final initial = isFrom ? (_monthlyFromDate ?? now) : (_monthlyToDate ?? now);
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2023),
+      lastDate: DateTime(now.year + 2),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(primary: primaryBlue),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isFrom) {
+          _monthlyFromDate = picked;
+          if (_monthlyToDate != null && _monthlyToDate!.isBefore(picked)) {
+            _monthlyToDate = null;
+          }
+        } else {
+          _monthlyToDate = picked;
+        }
+      });
     }
   }
 
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.redAccent,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final todayStr = DateFormat('dd MMM yyyy').format(DateTime.now());
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
-
       appBar: AppBar(
-        backgroundColor: primaryBlue,
+        backgroundColor: Colors.white,
         elevation: 1,
         centerTitle: true,
-
-        // 🔙 Back icon → AdminDashboardScreen
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          icon: Icon(Icons.arrow_back_ios_new, color: primaryBlue),
           onPressed: () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (_) => const AdminDashboardScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
             );
           },
         ),
-
-        title: const Text(
-          "Reports",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+        title: Text(
+          "Reports & Exports",
+          style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold),
         ),
-
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.bell, color: Colors.white),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // --- Daily Report Card ---
             _buildReportCard(
-              icon: LucideIcons.calendarDays,
               title: "Daily Attendance Report",
-              description:
-              "Export a detailed CSV report of daily employee attendance records, including check-in and check-out times for a selected period.",
-            ),
-            _buildReportCard(
-              icon: LucideIcons.calendarRange,
-              title: "Monthly Attendance Summary",
-              description:
-              "Generate a comprehensive monthly attendance summary in CSV format, ideal for payroll and HR analysis.",
-            ),
-            _buildReportCard(
-              icon: LucideIcons.fileText,
-              title: "Complaint Reports",
-              description:
-              "Access and export a list of submitted complaints, categorized by type and status, for administrative review.",
-            ),
-            const SizedBox(height: 30),
-
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Finalize Report Export",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: primaryBlue,
+              icon: LucideIcons.calendarDays,
+              description: "Download detailed check-in/out records for today ($todayStr).",
+              content: Align(
+                alignment: Alignment.centerRight,
+                child: _buildDownloadButton(
+                  onPressed: _isDailyExporting ? null : _exportDailyReport,
+                  isLoading: _isDailyExporting,
                 ),
               ),
             ),
-            const SizedBox(height: 10),
 
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _isExporting ? null : _exportReports,
-                icon: _isExporting
-                    ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
+            const SizedBox(height: 16),
+
+            // --- Monthly/Summary Report Card ---
+            _buildReportCard(
+              title: "Summary Report",
+              icon: LucideIcons.barChart2,
+              description: "Select a date range to generate an aggregated attendance summary (Present/Absent counts).",
+              content: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(child: _buildDateSelector(true)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildDateSelector(false)),
+                    ],
                   ),
-                )
-                    : const Icon(LucideIcons.download, color: Colors.white),
-                label: const Text(
-                  "Export Selected Reports",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _buildDownloadButton(
+                      onPressed: _isMonthlyExporting ? null : _exportMonthlyReport,
+                      isLoading: _isMonthlyExporting,
+                    ),
                   ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBlue,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+                ],
               ),
             ),
-            const SizedBox(height: 30),
           ],
         ),
       ),
@@ -356,81 +360,84 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   Widget _buildReportCard({
-    required IconData icon,
     required String title,
+    required IconData icon,
     required String description,
+    required Widget content,
   }) {
-    final bool isSelected = _selectedReports[title] ?? false;
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10),
+      elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 3,
-      shadowColor: Colors.black26,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title Row
             Row(
               children: [
                 CircleAvatar(
-                  radius: 25,
                   backgroundColor: lightBlue,
-                  child: Icon(icon, color: primaryBlue, size: 26),
+                  radius: 24,
+                  child: Icon(icon, color: primaryBlue),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Text(
                     title,
                     style: TextStyle(
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: primaryBlue,
-                      fontSize: 16,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-
-            // Description
-            Text(
-              description,
-              style: const TextStyle(color: Colors.black54, fontSize: 14),
-            ),
             const SizedBox(height: 12),
-
-            // Select Button
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton(
-                onPressed: () => _toggleSelection(title),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(
-                    color: isSelected ? primaryBlue : Colors.grey.shade400,
-                  ),
-                  backgroundColor:
-                  isSelected ? primaryBlue.withOpacity(0.1) : Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 10,
-                    horizontal: 24,
-                  ),
-                ),
-                child: Text(
-                  isSelected ? "Selected" : "Select",
-                  style: TextStyle(
-                    color: isSelected ? primaryBlue : Colors.black87,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
+            Text(description, style: const TextStyle(color: Colors.black54, height: 1.4)),
+            const SizedBox(height: 8),
+            content,
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDateSelector(bool isFrom) {
+    final date = isFrom ? _monthlyFromDate : _monthlyToDate;
+    final label = date != null ? DateFormat('dd/MM/yyyy').format(date) : (isFrom ? "Start Date" : "End Date");
+    
+    return GestureDetector(
+      onTap: () => _pickMonthlyDate(isFrom: isFrom),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(10),
+          color: Colors.white,
+        ),
+        child: Row(
+          children: [
+            Icon(LucideIcons.calendar, size: 18, color: primaryBlue),
+            const SizedBox(width: 8),
+            Text(label, style: TextStyle(color: date == null ? Colors.grey : Colors.black87)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDownloadButton({required VoidCallback? onPressed, required bool isLoading}) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: isLoading 
+        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+        : const Icon(LucideIcons.download, color: Colors.white, size: 20),
+      label: const Text("Download CSV", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryBlue,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
