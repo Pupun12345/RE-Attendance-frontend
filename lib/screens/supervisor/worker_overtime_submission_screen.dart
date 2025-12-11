@@ -5,15 +5,21 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:smartcare_app/screens/supervisor/worker_checkin_screen.dart';
 import 'package:smartcare_app/screens/supervisor/worker_checkout_screen.dart';
+import 'dart:convert'; // Fixes jsonEncode, jsonDecode
+import 'package:http/http.dart' as http; // Fixes http
+import 'package:shared_preferences/shared_preferences.dart'; // Fixes SharedPreferences
+import 'package:smartcare_app/utils/constants.dart'; // Fixes apiBaseUrl
 
 class WorkerOvertimeSubmissionScreen extends StatefulWidget {
   final String name;
   final String userId;
+  final String dbId;
 
   const WorkerOvertimeSubmissionScreen({
     Key? key,
     required this.name,
     required this.userId,
+    required this.dbId,
   }) : super(key: key);
 
   @override
@@ -25,11 +31,14 @@ class _WorkerOvertimeSubmissionScreenState
     extends State<WorkerOvertimeSubmissionScreen> {
   final Color themeBlue = const Color(0xFF0B3B8C);
 
+  final TextEditingController _hoursController = TextEditingController();
+
   String _dateTimeText = "";
   Timer? _timer;
 
 
   final TextEditingController _reasonController = TextEditingController();
+  DateTime _selectedDate = DateTime.now();
   bool _isSubmitting = false;
 
   @override
@@ -63,8 +72,49 @@ class _WorkerOvertimeSubmissionScreenState
 
 
   void _submitOvertime() async {
+    if (_hoursController.text.isEmpty || _reasonController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please fill all fields"), backgroundColor: Colors.red));
+      return;
+  }
 
-    return;
+  setState(() => _isSubmitting = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final url = Uri.parse('$apiBaseUrl/api/v1/overtime'); //
+      
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
+        },
+        body: jsonEncode({
+          'workerId': widget.dbId, // ✅ Send Worker ID
+          'date': _selectedDate.toIso8601String(),
+          'hours': double.tryParse(_hoursController.text) ?? 0,
+          'reason': _reasonController.text
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        if(!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Overtime Submitted!"), backgroundColor: Colors.green));
+        Navigator.pop(context);
+      } else {
+        throw Exception(jsonDecode(response.body)['message']);
+      }
+    } catch (e) {
+      if(!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+    } finally {
+      if(mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override

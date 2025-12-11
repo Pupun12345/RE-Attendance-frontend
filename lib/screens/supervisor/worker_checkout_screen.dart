@@ -388,8 +388,9 @@ void dispose() {
         final imgBase64 = base64Encode(imgBytes);
 
         // DUMMY Pending Checkout API (backend dev replace karega)
-        final url =
-        Uri.parse('$apiBaseUrl/api/v1/attendance/checkout/pending');
+        //final url =
+        //Uri.parse('$apiBaseUrl/api/v1/attendance/checkout/pending');
+        final url = Uri.parse('$apiBaseUrl/api/v1/attendance/supervisor/checkout-pending');
 
         final body = {
           "type": item['type'],

@@ -11,6 +11,8 @@ import 'package:http_parser/http_parser.dart';
 import 'package:smartcare_app/utils/constants.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:path_provider/path_provider.dart'; 
+import 'package:path/path.dart' as path;
 
 class SelfieCheckOutScreen extends StatefulWidget {
   const SelfieCheckOutScreen({super.key});
@@ -380,28 +382,41 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     });
   }
 
-  Future<void> _savePending({required bool needsAdminApproval}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = {
-      "imagePath": selfieImage!.path,
-      "lat": _currentPosition!.latitude,
-      "lng": _currentPosition!.longitude,
-      "dateTime": DateTime.now().toIso8601String(),
-      "displayTime": dateTime,
-      "location": location,
-      "coordsText": coordsText,
-      "userName": _userName,
-      "needsAdminApproval": needsAdminApproval, 
-    };
+  
+Future<void> _savePending({required bool needsAdminApproval}) async {
+  if (selfieImage == null) return;
 
-    await prefs.setString('pending_checkout', jsonEncode(data));
+  // ✅ FIX: Move file from Cache to Permanent Storage
+  final directory = await getApplicationDocumentsDirectory();
+  final String fileName = 'checkout_${DateTime.now().millisecondsSinceEpoch}.jpg';
+  final String newPath = path.join(directory.path, fileName);
+  
+  final File newImage = await selfieImage!.copy(newPath);
 
-    setState(() => _isPendingMode = true);
-    
-    if (!needsAdminApproval && _retrySeconds == 0) {
-       _showError("No Internet. Retrying for 1 minute...");
-    }
+  final prefs = await SharedPreferences.getInstance();
+  final data = {
+    "imagePath": newImage.path, // ✅ Save the PERMANENT path
+    "lat": _currentPosition!.latitude,
+    "lng": _currentPosition!.longitude,
+    "dateTime": DateTime.now().toIso8601String(),
+    "displayTime": dateTime,
+    "location": location,
+    "coordsText": coordsText,
+    "userName": _userName,
+    "needsAdminApproval": needsAdminApproval, 
+  };
+
+  await prefs.setString('pending_checkout', jsonEncode(data));
+
+  setState(() {
+    _isPendingMode = true;
+    selfieImage = newImage;
+  });
+  
+  if (!needsAdminApproval && _retrySeconds == 0) {
+     _showError("No Internet. Retrying for 1 minute...");
   }
+}
 
   void _showError(String message) {
     if (!mounted) return;

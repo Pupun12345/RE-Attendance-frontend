@@ -16,6 +16,9 @@ class AdminPendingAttendanceScreen extends StatefulWidget {
       _AdminPendingAttendanceScreenState();
 }
 
+// 🔹 3 category: Supervisor, Management, Worker
+enum PendingCategory { supervisor, management, worker }
+
 class _AdminPendingAttendanceScreenState
     extends State<AdminPendingAttendanceScreen> {
   final Color primaryBlue = const Color(0xFF0D47A1);
@@ -24,6 +27,8 @@ class _AdminPendingAttendanceScreenState
   List<PendingAttendance> _pendingRequests = [];
   bool _isLoading = true;
   String? _token;
+
+  PendingCategory _selectedCategory = PendingCategory.supervisor;
 
   @override
   void initState() {
@@ -34,16 +39,74 @@ class _AdminPendingAttendanceScreenState
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+      ),
     );
   }
 
-  // ✅ --- 1. FETCH PENDING REQUESTS from API ---
+  // 🔹 Category -> role string (API ke role ke hisaab se)
+  String _categoryToRole(PendingCategory category) {
+    switch (category) {
+      case PendingCategory.supervisor:
+        return 'supervisor';
+      case PendingCategory.management:
+        return 'management';
+      case PendingCategory.worker:
+        return 'worker';
+    }
+  }
+
+  String _categoryToTitle(PendingCategory category) {
+    switch (category) {
+      case PendingCategory.supervisor:
+        return 'Supervisor';
+      case PendingCategory.management:
+        return 'Management';
+      case PendingCategory.worker:
+        return 'Workers';
+    }
+  }
+
+  IconData _categoryToIcon(PendingCategory category) {
+    switch (category) {
+      case PendingCategory.supervisor:
+        return LucideIcons.userCheck;
+      case PendingCategory.management:
+        return LucideIcons.briefcase; 
+      case PendingCategory.worker:
+        return LucideIcons.users;
+    }
+  }
+
+  
+  String _extractUserRole(dynamic user) {
+    try {
+      final r = user.role ?? user.userType ?? user.type ?? '';
+      return r.toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
+ 
+  List<PendingAttendance> get _filteredRequests {
+    final role = _categoryToRole(_selectedCategory).toLowerCase();
+    return _pendingRequests.where((req) {
+      final userRole = _extractUserRole(req.user).toLowerCase();
+      return userRole == role;
+    }).toList();
+  }
+
+  // ✅ API should add here 
   Future<void> _fetchPendingRequests() async {
     setState(() => _isLoading = true);
+
     try {
       final prefs = await SharedPreferences.getInstance();
       _token = prefs.getString('token');
+
       if (_token == null) {
         _showError("Not authorized.");
         return;
@@ -74,7 +137,7 @@ class _AdminPendingAttendanceScreenState
     }
   }
 
-  // ✅ --- 2. HANDLE APPROVE/REJECT API CALL ---
+  // ✅ Approve / Reject action
   Future<void> _handleAttendanceAction(
       PendingAttendance request, bool isApproved) async {
     if (_token == null) {
@@ -92,10 +155,10 @@ class _AdminPendingAttendanceScreenState
       );
 
       if (response.statusCode == 200) {
-        // Success: Remove from list locally for instant UI update
         setState(() {
           _pendingRequests.remove(request);
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -138,42 +201,138 @@ class _AdminPendingAttendanceScreenState
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: primaryBlue))
           : RefreshIndicator(
-              onRefresh: _fetchPendingRequests,
-              child: _pendingRequests.isEmpty
-                  ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        SizedBox(height: MediaQuery.of(context).size.height / 3),
-                        const Center(
-                          child: Text(
-                            "No pending attendance requests.",
-                            style: TextStyle(color: Colors.black54, fontSize: 16),
-                          ),
-                        ),
-                      ],
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _pendingRequests.length,
-                      itemBuilder: (context, index) {
-                        final request = _pendingRequests[index];
-                        return _buildRequestCard(request);
-                      },
-                    ),
+        onRefresh: _fetchPendingRequests,
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            // 🔹 Upar 3 category cards
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12.0, vertical: 4.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child:
+                    _buildCategoryCard(PendingCategory.supervisor),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child:
+                    _buildCategoryCard(PendingCategory.management),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildCategoryCard(PendingCategory.worker),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(height: 8),
+
+            // 🔹 Niche filtered list
+            Expanded(
+              child: _filteredRequests.isEmpty
+                  ? ListView(
+                physics:
+                const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                      height:
+                      MediaQuery.of(context).size.height / 4),
+                  Center(
+                    child: Text(
+                      "No pending ${_categoryToTitle(_selectedCategory)} attendance.",
+                      style: const TextStyle(
+                          color: Colors.black54, fontSize: 16),
+                    ),
+                  ),
+                ],
+              )
+                  : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _filteredRequests.length,
+                itemBuilder: (context, index) {
+                  final request = _filteredRequests[index];
+                  return _buildRequestCard(request);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  // ✅ --- 3. BUILD CARD from API DATA ---
+  // 🔹 Category card widget (Supervisor / Management / Worker)
+  Widget _buildCategoryCard(PendingCategory category) {
+    final isSelected = _selectedCategory == category;
+    final title = _categoryToTitle(category);
+    final icon = _categoryToIcon(category);
+    final expectedRole = _categoryToRole(category).toLowerCase();
+
+    final count = _pendingRequests.where((req) {
+      final userRole = _extractUserRole(req.user).toLowerCase();
+      return userRole == expectedRole;
+    }).length;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () {
+        setState(() {
+          _selectedCategory = category;
+        });
+      },
+      child: Card(
+        color: isSelected ? primaryBlue : Colors.white,
+        elevation: isSelected ? 3 : 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: isSelected ? primaryBlue : Colors.grey.shade300,
+          ),
+        ),
+        child: Padding(
+          padding:
+          const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isSelected ? Colors.white : primaryBlue,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  "$title ($count)",
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight:
+                    isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected ? Colors.white : primaryBlue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔹 Individual request card
   Widget _buildRequestCard(PendingAttendance staff) {
-    // --- Profile Image Logic ---
     ImageProvider profileImage =
-        const AssetImage("assets/images/profile.png");
+    const AssetImage("assets/images/profile.png");
+
     if (staff.user.profileImageUrl != null &&
         staff.user.profileImageUrl!.isNotEmpty) {
       profileImage = NetworkImage(staff.user.profileImageUrl!);
     }
-    // --- End Profile Image Logic ---
+
+    final roleLabel = _extractUserRole(staff.user);
 
     return Card(
       color: Colors.white,
@@ -187,55 +346,58 @@ class _AdminPendingAttendanceScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔹 Staff Info
+            // 🔹 User info row
             Row(
               children: [
                 CircleAvatar(
                   backgroundColor: lightBlue,
                   backgroundImage: profileImage,
-                  onBackgroundImageError: (exception, stackTrace) {
-                    // Handle broken image links
-                  },
                 ),
                 const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      staff.user.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: primaryBlue,
-                        fontSize: 16,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        staff.user.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: primaryBlue,
+                          fontSize: 16,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Time: ${DateFormat("hh:mm a").format(staff.checkInTime)}",
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 14,
+                      const SizedBox(height: 4),
+                      if (roleLabel.isNotEmpty)
+                        Text(
+                          "Role: $roleLabel",
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 13,
+                          ),
+                        ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Time: ${DateFormat("hh:mm a").format(staff.checkInTime)}",
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
-                    Text(
-                      "Date: ${DateFormat("MMM dd, yyyy").format(staff.checkInTime)}",
-                      style: const TextStyle(
-                        color: Colors.black54,
-                        fontSize: 13,
+                      Text(
+                        "Date: ${DateFormat("MMM dd, yyyy").format(staff.checkInTime)}",
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 13,
+                        ),
                       ),
-                    ),
-                    // You can add notes here if you have them
-                    // Text(
-                    //   "Note: ${staff.notes ?? 'N/A'}",
-                    //   style: TextStyle(color: Colors.grey[700], fontStyle: FontStyle.italic),
-                    // ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
 
-            // 🔹 Action Buttons
+            // 🔹 Approve / Reject buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

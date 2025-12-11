@@ -290,6 +290,7 @@ class WorkerProfileScreen extends StatelessWidget {
                     builder: (_) => WorkerOvertimeSubmissionScreen(
                       name: name,
                       userId: userId,
+                      dbId: dbId,
                     ),
                   ),
                 );

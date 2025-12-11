@@ -415,7 +415,8 @@ void _listenToNetwork() {
         final imgBase64 = base64Encode(imgBytes);
 
         // DUMMY Pending Attendance API
-        final url = Uri.parse('$apiBaseUrl/api/v1/attendance/pending');
+        //final url = Uri.parse('$apiBaseUrl/api/v1/attendance/pending');
+        final url = Uri.parse('$apiBaseUrl/api/v1/attendance/supervisor/checkin-pending');
 
         final body = {
           "userId": item['userId'],

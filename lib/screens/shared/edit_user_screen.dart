@@ -29,6 +29,12 @@ class _EditUserScreenState extends State<EditUserScreen> {
   late TextEditingController _emailController;
   late String _selectedRole;
 
+  // 🔹 Password controllers (only new + confirm)
+  final TextEditingController _newPasswordController =
+  TextEditingController();
+  final TextEditingController _confirmPasswordController =
+  TextEditingController();
+
   bool _isSaving = false;
   bool _isDisabling = false;
 
@@ -50,10 +56,6 @@ class _EditUserScreenState extends State<EditUserScreen> {
     _selectedRole = widget.user.role;
 
     _existingImageUrl = widget.user.profileImageUrl;
-
-    // If your User model has some flag like isDisabled / isActive,
-    // you can initialize _isUserDisabled from that here.
-    // For now, we keep default as false (enabled).
   }
 
   @override
@@ -62,6 +64,11 @@ class _EditUserScreenState extends State<EditUserScreen> {
     _userIdController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+
+    // 🔹 dispose password controllers
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+
     super.dispose();
   }
 
@@ -181,8 +188,19 @@ class _EditUserScreenState extends State<EditUserScreen> {
     }
   }
 
+ 
+
   Future<void> _updateUser() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // ✅ FIX 1: Check if passwords match (if entered)
+    if (_newPasswordController.text.isNotEmpty) {
+      if (_newPasswordController.text != _confirmPasswordController.text) {
+        _showError("Passwords do not match.");
+        return;
+      }
+    }
+
     setState(() => _isSaving = true);
 
     try {
@@ -201,7 +219,12 @@ class _EditUserScreenState extends State<EditUserScreen> {
         body['email'] = _emailController.text;
       }
 
-      // If new profile image selected, send as base64
+      // ✅ FIX 2: Send password to backend if user entered a new one
+      if (_newPasswordController.text.isNotEmpty) {
+        body['password'] = _newPasswordController.text;
+      }
+
+      // ... existing image logic ...
       if (_selectedImageFile != null) {
         final bytes = await _selectedImageFile!.readAsBytes();
         final String base64Image = base64Encode(bytes);
@@ -216,6 +239,8 @@ class _EditUserScreenState extends State<EditUserScreen> {
         },
         body: jsonEncode(body),
       );
+      
+      
 
       final data = jsonDecode(response.body);
 
@@ -355,6 +380,88 @@ class _EditUserScreenState extends State<EditUserScreen> {
               ),
               const SizedBox(height: 20),
               _buildRoleDropdown(),
+              const SizedBox(height: 20),
+
+              // 🔹 SECTION 1: New Password
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Password",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: primaryBlue,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 1,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 12),
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _newPasswordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: "New Password",
+                          labelStyle: TextStyle(color: primaryBlue),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // 🔹 SECTION 2: Confirm Password
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Confirm Password",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: primaryBlue,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 1,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 12),
+                  child: TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: "Confirm New Password",
+                      labelStyle: TextStyle(color: primaryBlue),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 30),
 
               // Save Button

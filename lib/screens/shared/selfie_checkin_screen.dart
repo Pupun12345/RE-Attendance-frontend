@@ -11,6 +11,8 @@ import 'package:http_parser/http_parser.dart';
 import 'package:smartcare_app/utils/constants.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 class SelfieCheckInScreen extends StatefulWidget {
   const SelfieCheckInScreen({super.key});
@@ -284,25 +286,41 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
     );
   }
 
-  Future<void> _savePending({required bool needsAdminApproval}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = {
-      "imagePath": selfieImage!.path,
-      "lat": _currentPosition!.latitude,
-      "lng": _currentPosition!.longitude,
-      "dateTime": DateTime.now().toIso8601String(),
-      "displayTime": dateTime,
-      "location": location,
-      "needsAdminApproval": needsAdminApproval, 
-    };
-    prefs.setString("pending_checkin", jsonEncode(data));
+  
 
-    setState(() => _isPendingMode = true);
-    
-    if (!needsAdminApproval && _retrySeconds == 0) {
-       _showError("No Internet. Retrying for 1 minute...");
-    }
+Future<void> _savePending({required bool needsAdminApproval}) async {
+  if (selfieImage == null) return;
+
+  // ✅ FIX: Move file from Cache to Permanent Storage
+  final directory = await getApplicationDocumentsDirectory();
+  final String fileName = 'checkin_${DateTime.now().millisecondsSinceEpoch}.jpg';
+  final String newPath = path.join(directory.path, fileName);
+  
+  // Copy the file
+  final File newImage = await selfieImage!.copy(newPath);
+
+  final prefs = await SharedPreferences.getInstance();
+  final data = {
+    "imagePath": newImage.path, // ✅ Save the PERMANENT path
+    "lat": _currentPosition!.latitude,
+    "lng": _currentPosition!.longitude,
+    "dateTime": DateTime.now().toIso8601String(),
+    "displayTime": dateTime,
+    "location": location,
+    "needsAdminApproval": needsAdminApproval, 
+  };
+  
+  await prefs.setString("pending_checkin", jsonEncode(data));
+
+  setState(() {
+    _isPendingMode = true;
+    selfieImage = newImage; // Update UI to refer to the safe file
+  });
+  
+  if (!needsAdminApproval && _retrySeconds == 0) {
+     _showError("No Internet. Retrying for 1 minute...");
   }
+}
 
   void _showError(String msg) {
     if(!mounted) return;
