@@ -1,14 +1,13 @@
-// lib/screens/admin_reports_screen.dart
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:csv/csv.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:file_saver/file_saver.dart'; 
 
 import 'package:smartcare_app/utils/constants.dart';
 import 'package:smartcare_app/screens/admin/admin_dashboard_screen.dart';
@@ -27,39 +26,35 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   bool _isDailyExporting = false;
   bool _isMonthlyExporting = false;
 
-  // 🔹 For monthly report date-range
+  // ✅ ADDED: State variable for Daily Report Date
+  DateTime _dailyDate = DateTime.now();
+
+  // Date range for monthly report
   DateTime? _monthlyFromDate;
   DateTime? _monthlyToDate;
 
   // ==========================
-  // 1. SAVE CSV FILE
+  // 1. FILE SAVING
   // ==========================
   Future<void> _saveCsvFile(String csvData, String suggestedFileName) async {
     try {
-      String? outputPath = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save Report As',
-        fileName: suggestedFileName,
-        allowedExtensions: ['csv'],
-        type: FileType.custom,
+      final List<int> encoded = utf8.encode(csvData);
+      final Uint8List bytes = Uint8List.fromList(encoded);
+
+      await FileSaver.instance.saveFile(
+        name: suggestedFileName.replaceAll('.csv', ''),
+        bytes: bytes,
+        ext: 'csv',
+        mimeType: MimeType.csv,
       );
 
-      if (outputPath != null) {
-        if (!outputPath.endsWith('.csv')) {
-          outputPath += '.csv';
-        }
-        final File file = File(outputPath);
-        await file.writeAsString(csvData);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Report saved successfully to $outputPath"),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        _showError("File save cancelled.");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Report downloaded successfully!"),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       _showError("Error saving file: ${e.toString()}");
@@ -67,101 +62,98 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   // ==========================
-  // 2. CSV GENERATOR
-  //    (SAME STRUCTURE FOR DAILY + MONTHLY)
+  // 2. DAILY REPORT GENERATOR
   // ==========================
-  String _generateAttendanceCSV(List<dynamic> data) {
+  String _generateDailyCSV(List<dynamic> data) {
     final List<List<dynamic>> rows = [];
-
     rows.add([
-      'No.',
-      'UNIQUE ID',
-      'DESIGNATION',
-      'NAME',
-      'DATE',
-      'PRESENT',
-      'OT',
-      'CHECK-IN',
-      'CHECK-OUT',
-      'LOCATION AREA',
-      'LOCATION SIZE',
+      'SL No.', 'UNIQUE ID', 'DESIGNATION', 'NAME', 'DATE', 
+      'PRESENT', 'OT', 'CHECK-IN', 'CHECK-OUT', 
+      'LOCATION AREA', 'LOCATION SIZE'
     ]);
 
     for (int i = 0; i < data.length; i++) {
       final record = data[i] ?? {};
       final user = record['user'] ?? {};
 
-      final uniqueId =
-          user['uniqueId'] ?? user['employeeCode'] ?? user['userId'] ?? 'N/A';
-
-      final designation =
-          user['designation'] ?? user['role'] ?? user['userType'] ?? 'N/A';
-
-      final name = user['name'] ?? 'N/A';
-
-      String dateStr = 'N/A';
-      if (record['date'] != null) {
-        try {
-          dateStr =
-              DateFormat('dd-MM-yyyy').format(DateTime.parse(record['date']));
-        } catch (_) {}
-      }
-
-      String presentStatus = 'N/A';
-      if (record['status'] != null) {
-        presentStatus = record['status'].toString().toUpperCase();
-      } else if (record['isPresent'] != null) {
-        presentStatus = record['isPresent'] == true ? 'PRESENT' : 'ABSENT';
-      }
-
-      final otValue = record['ot'] ??
-          record['otHours'] ??
-          record['overtime'] ??
-          record['otTime'] ??
-          0;
-
-      String checkInStr = '';
-      if (record['checkInTime'] != null) {
-        try {
-          checkInStr = DateFormat('hh:mm a')
-              .format(DateTime.parse(record['checkInTime']));
-        } catch (_) {}
-      }
-
-      String checkOutStr = '';
-      if (record['checkOutTime'] != null) {
-        try {
-          checkOutStr = DateFormat('hh:mm a')
-              .format(DateTime.parse(record['checkOutTime']));
-        } catch (_) {}
-      }
-
-      final location = record['location'] ?? {};
-      final locationArea =
-          record['locationArea'] ?? location['area'] ?? 'N/A';
-
-      String locationSize = 'N/A';
-      final lat = record['latitude'] ?? location['latitude'];
-      final lng = record['longitude'] ?? location['longitude'];
-
-      if (lat != null && lng != null) {
-        locationSize = '$lat - $lng';
-      } else if (record['locationSize'] != null) {
-        locationSize = record['locationSize'].toString();
-      }
-
       rows.add([
         i + 1,
-        uniqueId,
-        designation,
-        name,
-        dateStr,
-        presentStatus,
-        otValue,
-        checkInStr,
-        checkOutStr,
-        locationArea,
-        locationSize,
+        user['uniqueId'] ?? user['employeeCode'] ?? 'N/A',
+        user['designation'] ?? user['role'] ?? 'N/A',
+        user['name'] ?? 'N/A',
+        _formatDate(record['date']),
+        _getPresentStatus(record),
+        record['ot'] ?? 0,
+        _formatTime(record['checkInTime']),
+        _formatTime(record['checkOutTime']),
+        record['locationArea'] ?? 'N/A',
+        _formatLocation(record),
+      ]);
+    }
+    return const ListToCsvConverter().convert(rows);
+  }
+
+  // ==========================
+  // 3. MONTHLY REPORT GENERATOR
+  // ==========================
+  String _generateMonthlySummaryCSV(List<dynamic> data) {
+    final Map<String, Map<String, dynamic>> summary = {};
+
+    for (var record in data) {
+      final user = record['user'] ?? {};
+      final userId = user['_id'] ?? user['id'] ?? user['uniqueId'] ?? 'UNKNOWN';
+
+      if (!summary.containsKey(userId)) {
+        summary[userId] = {
+          'uniqueId': user['uniqueId'] ?? 'N/A',
+          'designation': (user['designation'] ?? user['role'] ?? 'WORKER').toString().toUpperCase(),
+          'name': user['name'] ?? 'N/A',
+          'present': 0,
+          'absent': 0,
+          'holidays': 0,
+          'ot': 0,
+        };
+      }
+
+      final status = _getPresentStatus(record).toUpperCase();
+      if (status == 'PRESENT') {
+        summary[userId]!['present']++;
+      } else if (status == 'ABSENT') {
+        summary[userId]!['absent']++;
+      } else if (status == 'HOLIDAY') {
+        summary[userId]!['holidays']++;
+      }
+
+      final ot = record['ot'] ?? 0;
+      summary[userId]!['ot'] += ot;
+    }
+
+    List<Map<String, dynamic>> sortedList = summary.values.toList();
+    int getPriority(String role) {
+      if (role.contains('MANAGEMENT')) return 1;
+      if (role.contains('SUPERVISOR')) return 2;
+      if (role.contains('WORKER')) return 3;
+      return 4; 
+    }
+    sortedList.sort((a, b) => getPriority(a['designation']).compareTo(getPriority(b['designation'])));
+
+    final List<List<dynamic>> rows = [];
+    rows.add([
+      'SL No.', 'UNIQUE ID', 'DESIGNATION', 'NAME', 
+      'FROM DATE - TO DATE', 'PRESENT', 'ABSENT', 'HOLIDAYS', 'OT'
+    ]);
+
+    String dateRangeStr = "N/A";
+    if (_monthlyFromDate != null && _monthlyToDate != null) {
+      final f = DateFormat('dd-MM-yyyy');
+      dateRangeStr = "${f.format(_monthlyFromDate!)} TO ${f.format(_monthlyToDate!)}";
+    }
+
+    for (int i = 0; i < sortedList.length; i++) {
+      final item = sortedList[i];
+      rows.add([
+        i + 1, item['uniqueId'], item['designation'], item['name'],
+        dateRangeStr, item['present'], item['absent'], item['holidays'], item['ot']
       ]);
     }
 
@@ -169,11 +161,12 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
   // ==========================
-  // 3. COMMON EXPORT FUNCTION
+  // 4. API HANDLER
   // ==========================
   Future<void> _exportAttendanceReport({
     required String endpoint,
     required String fileNamePrefix,
+    required bool isMonthly,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -182,6 +175,9 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         _showError("Not authorized.");
         return;
       }
+
+      // DEBUG: Print the URL to console to verify the date being sent
+      print('Fetching Report: $apiBaseUrl$endpoint');
 
       final url = Uri.parse('$apiBaseUrl$endpoint');
       final response = await http.get(
@@ -196,53 +192,47 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         if (data.isEmpty) {
           _showError("No data found for this report.");
         } else {
-          final csvData = _generateAttendanceCSV(data);
-          final dateTag =
-          DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+          String csvData;
+          if (isMonthly) {
+            csvData = _generateMonthlySummaryCSV(data);
+          } else {
+            csvData = _generateDailyCSV(data);
+          }
+          final dateTag = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
           final fileName = '${fileNamePrefix}_$dateTag.csv';
           await _saveCsvFile(csvData, fileName);
         }
       } else {
-        _showError(
-            "Failed to fetch report. Status code: ${response.statusCode}");
+        _showError("Failed to fetch report. Status code: ${response.statusCode}");
       }
     } catch (e) {
-      _showError("An error occurred during export: ${e.toString()}");
+      _showError("An error occurred: ${e.toString()}");
     }
   }
 
   // ==========================
-  // 4. DAILY / MONTHLY WRAPPERS
+  // 5. BUTTON ACTIONS
   // ==========================
-
-  /// Daily report:
-  /// 👉 Automatically aaj ki date use hogi (startDate = endDate = today)
   Future<void> _exportDailyReport() async {
     if (_isDailyExporting) return;
-
     setState(() => _isDailyExporting = true);
 
-    final today = DateTime.now();
-    final todayStr = DateFormat('yyyy-MM-dd').format(today);
-
+    // ✅ CHANGED: Use _dailyDate instead of today
+    final dateStr = DateFormat('yyyy-MM-dd').format(_dailyDate);
+    
     await _exportAttendanceReport(
-      endpoint:
-      "/api/v1/reports/attendance/daily?startDate=$todayStr&endDate=$todayStr",
+      endpoint: "/api/v1/reports/attendance/daily?startDate=$dateStr&endDate=$dateStr",
       fileNamePrefix: 'daily_attendance_report',
+      isMonthly: false,
     );
 
-    if (mounted) {
-      setState(() => _isDailyExporting = false);
-    }
+    if (mounted) setState(() => _isDailyExporting = false);
   }
 
-  /// Monthly report:
-  /// 👉 From Date & To Date user pick karega, unke basis pe query jayegi.
   Future<void> _exportMonthlyReport() async {
     if (_isMonthlyExporting) return;
-
     if (_monthlyFromDate == null || _monthlyToDate == null) {
-      _showError("Please select From and To dates for monthly report.");
+      _showError("Please select From and To dates.");
       return;
     }
     if (_monthlyFromDate!.isAfter(_monthlyToDate!)) {
@@ -251,44 +241,46 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     }
 
     setState(() => _isMonthlyExporting = true);
-
     final fromStr = DateFormat('yyyy-MM-dd').format(_monthlyFromDate!);
     final toStr = DateFormat('yyyy-MM-dd').format(_monthlyToDate!);
 
-    // Backend dev yaha par startDate & endDate use karke monthly logic laga sakta hai.
     await _exportAttendanceReport(
-      endpoint:
-      "/api/v1/reports/attendance/monthly?startDate=$fromStr&endDate=$toStr",
+      endpoint: "/api/v1/reports/attendance/monthly?startDate=$fromStr&endDate=$toStr",
       fileNamePrefix: 'monthly_attendance_report',
+      isMonthly: true,
     );
 
-    if (mounted) {
-      setState(() => _isMonthlyExporting = false);
-    }
+    if (mounted) setState(() => _isMonthlyExporting = false);
   }
 
   // ==========================
-  // 5. DATE PICKER HELPERS
+  // 6. HELPERS & DATE PICKERS
   // ==========================
+  Future<void> _pickDailyDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dailyDate,
+      firstDate: DateTime(2023),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) {
+      setState(() => _dailyDate = picked);
+    }
+  }
 
   Future<void> _pickMonthlyDate({required bool isFrom}) async {
     final now = DateTime.now();
-    final initial = isFrom
-        ? (_monthlyFromDate ?? now)
-        : (_monthlyToDate ?? now);
-
+    final initial = isFrom ? (_monthlyFromDate ?? now) : (_monthlyToDate ?? now);
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
-      firstDate: DateTime(2023, 1, 1),
-      lastDate: DateTime(now.year + 1, 12, 31),
+      firstDate: DateTime(2023),
+      lastDate: DateTime(now.year + 2),
     );
-
     if (picked != null) {
       setState(() {
         if (isFrom) {
           _monthlyFromDate = picked;
-          // optional: agar toDate null hai ya from ke pehle hai to toDate bhi sync kar do
           if (_monthlyToDate == null || _monthlyToDate!.isBefore(picked)) {
             _monthlyToDate = picked;
           }
@@ -299,159 +291,129 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     }
   }
 
-  // ==========================
-  // 6. ERROR SNACKBAR
-  // ==========================
+  String _formatDate(dynamic dateStr) {
+    if (dateStr == null) return 'N/A';
+    try {
+      return DateFormat('dd-MM-yyyy').format(DateTime.parse(dateStr));
+    } catch (_) { return 'N/A'; }
+  }
+
+  String _formatTime(dynamic timeStr) {
+    if (timeStr == null) return '';
+    try {
+      return DateFormat('hh:mm a').format(DateTime.parse(timeStr));
+    } catch (_) { return ''; }
+  }
+
+  String _getPresentStatus(Map<String, dynamic> record) {
+    if (record['status'] != null) return record['status'].toString();
+    if (record['isPresent'] != null) return record['isPresent'] == true ? 'Present' : 'Absent';
+    return 'Absent';
+  }
+
+  String _formatLocation(Map<String, dynamic> record) {
+    final lat = record['latitude'] ?? record['location']?['latitude'];
+    final lng = record['longitude'] ?? record['location']?['longitude'];
+    if (lat != null && lng != null) return '$lat - $lng';
+    return record['locationSize']?.toString() ?? 'N/A';
+  }
+
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.redAccent,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
     );
   }
 
   // ==========================
-  // 7. UI
+  // 7. UI BUILD
   // ==========================
   @override
   Widget build(BuildContext context) {
-    final today = DateTime.now();
-    final todayLabel = DateFormat('dd-MM-yyyy').format(today);
-
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: primaryBlue,
-        elevation: 1,
-        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const AdminDashboardScreen(),
-              ),
-            );
-          },
+          onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen())),
         ),
-        title: const Text(
-          "Reports",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.bell, color: Colors.white),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 8),
-        ],
+        title: const Text("Reports", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // 🔹 DAILY CARD (always today)
-            _buildDailyReportCard(
-              todayLabel: todayLabel,
+            // ================== DAILY REPORT CARD ==================
+            _buildReportCard(
+              title: "Daily Attendance Report",
+              icon: LucideIcons.calendarDays,
+              desc: "Select a date to download the detailed daily log.",
+              isLoading: _isDailyExporting,
+              onDownload: _exportDailyReport,
+              // ✅ ADDED: Date selector for Daily Report
+              extraContent: Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _pickDailyDate,
+                  icon: const Icon(LucideIcons.calendar),
+                  label: Text(DateFormat('dd-MM-yyyy').format(_dailyDate)),
+                  style: OutlinedButton.styleFrom(side: BorderSide(color: primaryBlue.withOpacity(0.6))),
+                ),
+              ),
             ),
-
-            // 🔹 MONTHLY CARD (with from/to date pickers)
-            _buildMonthlyReportCard(),
-
-            const SizedBox(height: 30),
+            
+            // ================== MONTHLY REPORT CARD ==================
+            _buildReportCard(
+              title: "Monthly Attendance Report",
+              icon: LucideIcons.calendarRange,
+              desc: "Summary grouped by Management, Supervisor, and Workers.",
+              isLoading: _isMonthlyExporting,
+              onDownload: _exportMonthlyReport,
+              extraContent: _buildDateSelectors(),
+            ),
           ],
         ),
       ),
     );
   }
 
-  // ---------- DAILY CARD ----------
-  Widget _buildDailyReportCard({
-    required String todayLabel,
+  Widget _buildReportCard({
+    required String title,
+    required IconData icon,
+    required String desc,
+    required bool isLoading,
+    required VoidCallback onDownload,
+    Widget? extraContent,
   }) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 3,
-      shadowColor: Colors.black26,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 25,
-                  backgroundColor: lightBlue,
-                  child: Icon(LucideIcons.calendarDays,
-                      color: primaryBlue, size: 26),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    "Daily Attendance Report",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: primaryBlue,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Date: $todayLabel (Today)",
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.black54,
-              ),
-            ),
+            Row(children: [
+              CircleAvatar(backgroundColor: lightBlue, child: Icon(icon, color: primaryBlue)),
+              const SizedBox(width: 14),
+              Expanded(child: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: primaryBlue, fontSize: 16))),
+            ]),
             const SizedBox(height: 10),
-            Text(
-              "Download a detailed CSV report of daily employee attendance records with check-in, check-out, OT and location.",
-              style: const TextStyle(color: Colors.black54, fontSize: 14),
-            ),
+            Text(desc, style: const TextStyle(color: Colors.black54, fontSize: 13)),
+            if (extraContent != null) ...[const SizedBox(height: 12), extraContent],
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,
               child: ElevatedButton.icon(
-                onPressed: _isDailyExporting ? null : _exportDailyReport,
-                icon: _isDailyExporting
-                    ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-                    : const Icon(
-                  LucideIcons.download,
-                  color: Colors.white,
-                ),
-                label: const Text(
-                  "Download Report",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBlue,
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 10, horizontal: 20),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
+                onPressed: isLoading ? null : onDownload,
+                icon: isLoading
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(LucideIcons.download, color: Colors.white),
+                label: const Text("Download Report", style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(backgroundColor: primaryBlue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
               ),
             ),
           ],
@@ -460,144 +422,23 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     );
   }
 
-  // ---------- MONTHLY CARD ----------
-  Widget _buildMonthlyReportCard() {
-    String fromLabel = _monthlyFromDate != null
-        ? DateFormat('dd-MM-yyyy').format(_monthlyFromDate!)
-        : "From Date";
+  Widget _buildDateSelectors() {
+    return Row(
+      children: [
+        Expanded(child: _dateButton(true)),
+        const SizedBox(width: 10),
+        Expanded(child: _dateButton(false)),
+      ],
+    );
+  }
 
-    String toLabel = _monthlyToDate != null
-        ? DateFormat('dd-MM-yyyy').format(_monthlyToDate!)
-        : "To Date";
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 3,
-      shadowColor: Colors.black26,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 25,
-                  backgroundColor: lightBlue,
-                  child: Icon(LucideIcons.calendarRange,
-                      color: primaryBlue, size: 26),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    "Monthly Attendance Report",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: primaryBlue,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              "Select From and To date (backend will generate monthly/period-wise summary based on this range).",
-              style: const TextStyle(color: Colors.black54, fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-
-            // Date range row
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _pickMonthlyDate(isFrom: true),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: primaryBlue.withOpacity(0.6)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 10, horizontal: 8),
-                    ),
-                    child: Text(
-                      fromLabel,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: _monthlyFromDate == null
-                            ? Colors.black54
-                            : primaryBlue,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _pickMonthlyDate(isFrom: false),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: primaryBlue.withOpacity(0.6)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 10, horizontal: 8),
-                    ),
-                    child: Text(
-                      toLabel,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: _monthlyToDate == null
-                            ? Colors.black54
-                            : primaryBlue,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                onPressed:
-                _isMonthlyExporting ? null : _exportMonthlyReport,
-                icon: _isMonthlyExporting
-                    ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-                    : const Icon(
-                  LucideIcons.download,
-                  color: Colors.white,
-                ),
-                label: const Text(
-                  "Download Report",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBlue,
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 10, horizontal: 20),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+  Widget _dateButton(bool isFrom) {
+    final date = isFrom ? _monthlyFromDate : _monthlyToDate;
+    final label = date != null ? DateFormat('dd-MM-yyyy').format(date) : (isFrom ? "From Date" : "To Date");
+    return OutlinedButton(
+      onPressed: () => _pickMonthlyDate(isFrom: isFrom),
+      style: OutlinedButton.styleFrom(side: BorderSide(color: primaryBlue.withOpacity(0.6))),
+      child: Text(label, style: TextStyle(color: date == null ? Colors.black54 : primaryBlue)),
     );
   }
 }

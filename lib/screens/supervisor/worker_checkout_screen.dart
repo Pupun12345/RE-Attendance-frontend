@@ -14,7 +14,14 @@ import 'package:smartcare_app/utils/constants.dart';
 import 'package:smartcare_app/screens/supervisor/supervisor_dashboard_screen.dart';
 
 class WorkerCheckOutScreen extends StatefulWidget {
-  const WorkerCheckOutScreen({Key? key}) : super(key: key);
+  final String workerName;
+  final String workerId;
+  final String workerDbId;
+  const WorkerCheckOutScreen({Key? key,
+    required this.workerName,
+    required this.workerId,
+    required this.workerDbId,
+  }) : super(key: key);
 
   @override
   State<WorkerCheckOutScreen> createState() => _WorkerCheckOutScreenState();

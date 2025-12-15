@@ -8,13 +8,13 @@ import 'package:smartcare_app/screens/supervisor/worker_overtime_submission_scre
 class WorkerProfileScreen extends StatelessWidget {
   final String name;
   final String userId;
-  final String dbId; // ✅ Added this field
+  final String dbId; 
 
   const WorkerProfileScreen({
     Key? key,
     required this.name,
     required this.userId,
-    required this.dbId, // ✅ Added to constructor
+    required this.dbId, 
   }) : super(key: key);
 
   final Color themeBlue = const Color(0xFF0B3B8C);
@@ -27,7 +27,6 @@ class WorkerProfileScreen extends StatelessWidget {
         backgroundColor: themeBlue,
         elevation: 1,
         centerTitle: true,
-        automaticallyImplyLeading: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
@@ -128,7 +127,12 @@ class WorkerProfileScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const WorkerCheckInScreen(),
+                        // ✅ FIX 1: Removed 'const'
+                        builder: (context) => WorkerCheckInScreen(
+                          workerName: name,
+                          workerId: userId,
+                          workerDbId: dbId,
+                        ),
                       ),
                     );
                   },
@@ -151,7 +155,12 @@ class WorkerProfileScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const WorkerCheckOutScreen(),
+                        // ✅ FIX 2: Removed 'const' AND added missing arguments
+                        builder: (context) => WorkerCheckOutScreen(
+                          workerName: name,
+                          workerId: userId,
+                          workerDbId: dbId,
+                        ),
                       ),
                     );
                   },
@@ -174,7 +183,7 @@ class WorkerProfileScreen extends StatelessWidget {
     );
   }
 
-
+  // ... (Complaint and Overtime cards remain the same) ...
   Widget _buildComplaintCard(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -204,7 +213,7 @@ class WorkerProfileScreen extends StatelessWidget {
           const SizedBox(height: 8),
           const Text(
             "If the worker has any issue related to work, safety or attendance, "
-                "you can submit a complaint on their behalf.",
+            "you can submit a complaint on their behalf.",
             style: TextStyle(
               fontSize: 14,
               color: Colors.black54,
@@ -222,7 +231,7 @@ class WorkerProfileScreen extends StatelessWidget {
                     builder: (_) => WorkerSubmitComplaintScreen(
                       name: name,
                       userId: userId,
-                      dbId: dbId, // ✅ Passing the DB ID here fixed the error
+                      dbId: dbId, 
                     ),
                   ),
                 );
