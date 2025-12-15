@@ -1,48 +1,11 @@
+// lib/screens/supervisor/attendance_detail_screen.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'package:smartcare_app/utils/constants.dart';
 import 'package:smartcare_app/screens/supervisor/supervisor_dashboard_screen.dart';
-
-// Model for the employee list
-class EmployeeStatus {
-  final String id;
-  final String name;
-  final String status;
-  final String? profileImageUrl;
-
-  EmployeeStatus({
-    required this.id,
-    required this.name,
-    required this.status,
-    this.profileImageUrl,
-  });
-
-  factory EmployeeStatus.fromJson(Map<String, dynamic> json) {
-    return EmployeeStatus(
-      id: json['_id'],
-      name: json['name'],
-      status: json['status'],
-      profileImageUrl: json['profileImageUrl'],
-    );
-  }
-}
-
-// Model for self (supervisor) attendance
-class SelfAttendanceRecord {
-  final DateTime date;
-  final String status;
-  final String? checkIn;
-  final String? checkOut;
-
-  SelfAttendanceRecord({
-    required this.date,
-    required this.status,
-    this.checkIn,
-    this.checkOut,
-  });
-}
 
 class AttendanceDetailScreen extends StatefulWidget {
   const AttendanceDetailScreen({Key? key}) : super(key: key);
@@ -53,118 +16,158 @@ class AttendanceDetailScreen extends StatefulWidget {
 
 class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
   final Color themeBlue = const Color(0xFF0B3B8C);
-  final String _apiUrl = apiBaseUrl;
 
-  Map<String, dynamic> _summaryData = {};
-  List<EmployeeStatus> _employeeList = [];
   bool _isLoading = true;
-  String? _error;
+  List<dynamic> _selfAttendanceList = [];
+  List<dynamic> _employeeList = [];
 
-  // Self attendance list (supervisor)
-  List<SelfAttendanceRecord> _selfAttendanceList = [];
+  // Summary Counters
+  int _presentCount = 0;
+  int _absentCount = 0;
+  int _lateCount = 0; // Note: Backend logic for 'late' needs to be defined, currently using status
+  int _leaveCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _initSelfAttendance();
-    _fetchData();
+    _fetchAllData();
   }
 
-  void _initSelfAttendance() {
-    final now = DateTime.now();
-
-    _selfAttendanceList = [
-      SelfAttendanceRecord(
-        date: now,
-        status: 'present',
-        checkIn: '09:05 AM',
-        checkOut: '06:00 PM',
-      ),
-      SelfAttendanceRecord(
-        date: now.subtract(const Duration(days: 1)),
-        status: 'present',
-        checkIn: '09:10 AM',
-        checkOut: '06:05 PM',
-      ),
-      SelfAttendanceRecord(
-        date: now.subtract(const Duration(days: 2)),
-        status: 'absent',
-        checkIn: null,
-        checkOut: null,
-      ),
-      SelfAttendanceRecord(
-        date: now.subtract(const Duration(days: 3)),
-        status: 'leave',
-        checkIn: null,
-        checkOut: null,
-      ),
-      SelfAttendanceRecord(
-        date: now.subtract(const Duration(days: 4)),
-        status: 'present',
-        checkIn: '09:00 AM',
-        checkOut: '05:55 PM',
-      ),
-      SelfAttendanceRecord(
-        date: now.subtract(const Duration(days: 6)),
-        status: 'present',
-        checkIn: '09:00 AM',
-        checkOut: '06:00 PM',
-      ),
-    ];
-
-    _cleanupOldSelfAttendance();
-  }
-
-  void _cleanupOldSelfAttendance() {
-    final now = DateTime.now();
-    _selfAttendanceList = _selfAttendanceList.where((record) {
-      final diff = now.difference(record.date).inDays;
-      return diff >= 0 && diff < 5; // keep only last 5 days
-    }).toList();
-
-    _selfAttendanceList.sort((a, b) => b.date.compareTo(a.date));
-  }
-
-  Future<void> _fetchData() async {
+  Future<void> _fetchAllData() async {
+    setState(() => _isLoading = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
-
-      final responses = await Future.wait([
-        http.get(
-          Uri.parse("$_apiUrl/api/v1/attendance/summary/today"),
-          headers: {'Authorization': 'Bearer $token'},
-        ),
-        http.get(
-          Uri.parse("$_apiUrl/api/v1/attendance/status/today"),
-          headers: {'Authorization': 'Bearer $token'},
-        ),
+      await Future.wait([
+        _fetchSelfAttendanceHistory(),
+        _fetchEmployeeDailyStatus(),
       ]);
-
-      if (!mounted) return;
-
-      if (responses[0].statusCode == 200) {
-        _summaryData = json.decode(responses[0].body)['data'] ?? {};
-      } else {
-        throw Exception('Failed to load summary');
-      }
-
-      if (responses[1].statusCode == 200) {
-        final List<dynamic> employeeJson =
-            json.decode(responses[1].body)['data'] ?? [];
-        _employeeList =
-            employeeJson.map((json) => EmployeeStatus.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to load employee list');
-      }
-
-      setState(() => _isLoading = false);
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _error = "Could not connect to server. Please try again.";
-      });
+      debugPrint("Error fetching data: $e");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // 1. Fetch Supervisor's own attendance for the last 5 days
+  Future<void> _fetchSelfAttendanceHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final userString = prefs.getString('user');
+    
+    if (token == null || userString == null) return;
+
+    final user = jsonDecode(userString);
+    final String myUserId = user['id'] ?? user['_id'];
+
+    // Date Range: Today back to 5 days ago
+    final now = DateTime.now();
+    final fiveDaysAgo = now.subtract(const Duration(days: 5));
+    final dateFormat = DateFormat('yyyy-MM-dd');
+
+    final url = Uri.parse(
+      '$apiBaseUrl/api/v1/reports/attendance/daily?startDate=${dateFormat.format(fiveDaysAgo)}&endDate=${dateFormat.format(now)}'
+    );
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> allRecords = data['data'];
+
+        // Filter only MY records
+        final myRecords = allRecords.where((record) {
+          if (record['user'] is Map) {
+            return record['user']['_id'] == myUserId || record['user']['id'] == myUserId;
+          }
+          return record['user'] == myUserId;
+        }).toList();
+
+        // Sort by date descending (newest first)
+        myRecords.sort((a, b) {
+          DateTime dateA = DateTime.parse(a['date']);
+          DateTime dateB = DateTime.parse(b['date']);
+          return dateB.compareTo(dateA);
+        });
+
+        if (mounted) {
+          setState(() {
+            _selfAttendanceList = myRecords;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching self attendance: $e");
+    }
+  }
+
+  // 2. Fetch Status of all Workers for Today
+  Future<void> _fetchEmployeeDailyStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    
+    if (token == null) return;
+
+    final url = Uri.parse('$apiBaseUrl/api/v1/attendance/status/today');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> employees = data['data'];
+
+        // Calculate Stats
+        int present = 0;
+        int absent = 0;
+        int leave = 0;
+        int late = 0;
+
+        for (var emp in employees) {
+          String status = (emp['status'] ?? 'absent').toString().toLowerCase();
+          if (status == 'present') present++;
+          else if (status == 'absent') absent++;
+          else if (status == 'leave') leave++;
+          else if (status == 'late') late++;
+        }
+
+        if (mounted) {
+          setState(() {
+            _employeeList = employees;
+            _presentCount = present;
+            _absentCount = absent;
+            _leaveCount = leave;
+            _lateCount = late;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching employee status: $e");
+    }
+  }
+
+  // Helper to format ISO time string
+  String _formatTime(String? isoString) {
+    if (isoString == null) return '--:--';
+    try {
+      return DateFormat('hh:mm a').format(DateTime.parse(isoString));
+    } catch (e) {
+      return '--:--';
+    }
+  }
+
+  // Helper to format Date string
+  String _formatDate(String? isoString) {
+    if (isoString == null) return '';
+    try {
+      return DateFormat('dd MMM, yyyy').format(DateTime.parse(isoString));
+    } catch (e) {
+      return '';
     }
   }
 
@@ -172,7 +175,6 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7FB),
-
       appBar: AppBar(
         backgroundColor: themeBlue,
         centerTitle: true,
@@ -195,248 +197,91 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
           ),
         ),
       ),
-
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-          ? Center(
-        child: Text(
-          _error!,
-          style: const TextStyle(color: Colors.red),
-        ),
-      )
-          : _buildBody(),
-    );
-  }
-
-  Widget _buildBody() {
-    final String presentCount = _summaryData['present']?.toString() ?? '0';
-    final String absentCount = _summaryData['absent']?.toString() ?? '0';
-    final String leaveCount = _summaryData['leave']?.toString() ?? '0';
-    const String lateCount = "0";
-
-    return Padding(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top summary cards
-          Row(
+      body: RefreshIndicator(
+        onRefresh: _fetchAllData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              buildStatCard("Present", presentCount, Colors.green),
-              const SizedBox(width: 10),
-              buildStatCard("Absent", absentCount, Colors.red),
+              /// 🔹 SUMMARY CARDS
+              Row(
+                children: [
+                  _statCard("Present", _presentCount.toString(), Colors.green),
+                  const SizedBox(width: 10),
+                  _statCard("Absent", _absentCount.toString(), Colors.red),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _statCard("Late", _lateCount.toString(), Colors.orange),
+                  const SizedBox(width: 10),
+                  _statCard("Leave", _leaveCount.toString(), Colors.blueGrey),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              /// 🔹 SELF ATTENDANCE
+              Text(
+                "Self Attendance (Last 5 Days)",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: themeBlue,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              _isLoading 
+                  ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+                  : _selfAttendanceList.isEmpty
+                      ? _emptyBox("No self attendance records found")
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _selfAttendanceList.length,
+                          itemBuilder: (context, index) {
+                            return _selfAttendanceCard(_selfAttendanceList[index]);
+                          },
+                        ),
+
+              const SizedBox(height: 24),
+
+              /// 🔹 EMPLOYEE LIST
+              const Text(
+                "Employee List (Today)",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              _isLoading
+                  ? const SizedBox() // Loader already shown above
+                  : _employeeList.isEmpty
+                      ? _emptyBox("No employee attendance data available")
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _employeeList.length,
+                          itemBuilder: (context, index) {
+                            return _employeeTile(_employeeList[index]);
+                          },
+                        ),
+              const SizedBox(height: 30),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              buildStatCard("Late", lateCount, Colors.orange),
-              const SizedBox(width: 10),
-              buildStatCard("On Leave", leaveCount, Colors.blueGrey),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // Self Attendance heading (updated as requested)
-          Text(
-            "Self Attendance Record",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: themeBlue,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _buildSelfAttendanceSection(),
-
-          const SizedBox(height: 20),
-
-          // Employee List
-          const Text(
-            "Employee List",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 10),
-
-          Expanded(
-            child: ListView.builder(
-              itemCount: _employeeList.length,
-              itemBuilder: (context, index) {
-                final employee = _employeeList[index];
-                final statusInfo = _getStatusInfo(employee.status);
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                    horizontal: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundImage: employee.profileImageUrl != null
-                            ? NetworkImage(employee.profileImageUrl!)
-                            : null,
-                        child: employee.profileImageUrl == null
-                            ? const Icon(Icons.person, size: 20)
-                            : null,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          employee.name,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 6,
-                          horizontal: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusInfo.color.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          statusInfo.text,
-                          style: TextStyle(
-                            color: statusInfo.color,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      )
-                    ],
-                  ),
-                );
-              },
-            ),
-          )
-        ],
+        ),
       ),
     );
   }
 
-  // Self attendance UI
-  Widget _buildSelfAttendanceSection() {
-    if (_selfAttendanceList.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: const Text(
-          "No recent records.",
-          style: TextStyle(fontSize: 14, color: Colors.black54),
-        ),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        children: _selfAttendanceList.map((record) {
-          final statusInfo = _getStatusInfo(record.status);
-          return Container(
-            margin: const EdgeInsets.only(bottom: 6),
-            child: Row(
-              children: [
-                // Date + times
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _formatDate(record.date),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _buildTimeText(record),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.black54,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusInfo.color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    statusInfo.text,
-                    style: TextStyle(
-                      color: statusInfo.color,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  String _buildTimeText(SelfAttendanceRecord record) {
-    if (record.checkIn == null && record.checkOut == null) {
-      return "No check-in / check-out";
-    }
-    return "In: ${record.checkIn ?? '--'}   Out: ${record.checkOut ?? '--'}";
-  }
-
-  String _formatDate(DateTime date) {
-    const monthNames = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
-    ];
-    final d = date.day.toString().padLeft(2, '0');
-    final m = monthNames[date.month - 1];
-    final y = date.year.toString();
-    return "$d $m $y";
-  }
-
-  Widget buildStatCard(String title, String count, Color color) {
+  // 🔹 SUMMARY CARD
+  Widget _statCard(String title, String count, Color color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 18),
@@ -446,8 +291,7 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withOpacity(0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              blurRadius: 6,
             )
           ],
         ),
@@ -457,38 +301,172 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
               count,
               style: TextStyle(
                 color: color,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            )
+            Text(title),
           ],
         ),
       ),
     );
   }
 
-  ({Color color, String text}) _getStatusInfo(String status) {
-    switch (status) {
+  // 🔹 EMPTY PLACEHOLDER
+  Widget _emptyBox(String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Center(
+        child: Text(
+          text,
+          style: const TextStyle(color: Colors.black54),
+        ),
+      ),
+    );
+  }
+
+  // 🔹 SELF ATTENDANCE CARD
+  Widget _selfAttendanceCard(dynamic record) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _formatDate(record['date']),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "In: ${_formatTime(record['checkInTime'])}  Out: ${_formatTime(record['checkOutTime'])}",
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _statusChip(record['status'] ?? 'absent'),
+        ],
+      ),
+    );
+  }
+
+  // 🔹 EMPLOYEE TILE
+  Widget _employeeTile(dynamic emp) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: themeBlue.withOpacity(0.1),
+            backgroundImage: (emp['profileImageUrl'] != null && emp['profileImageUrl'].isNotEmpty)
+                ? NetworkImage(emp['profileImageUrl'])
+                : null,
+            child: (emp['profileImageUrl'] == null || emp['profileImageUrl'].isEmpty)
+                ? Icon(Icons.person, size: 20, color: themeBlue)
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  emp['name'] ?? 'Unknown',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                Text(
+                  emp['userId'] ?? '',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          _statusChip(emp['status'] ?? 'absent'),
+        ],
+      ),
+    );
+  }
+
+  // 🔹 STATUS CHIP
+  Widget _statusChip(String status) {
+    Color c;
+    String label = status.toUpperCase();
+    
+    switch (status.toLowerCase()) {
       case 'present':
-        return (color: Colors.green, text: 'Present');
+        c = Colors.green;
+        break;
       case 'absent':
-        return (color: Colors.red, text: 'Absent');
+        c = Colors.red;
+        break;
+      case 'late':
+        c = Colors.orange;
+        break;
       case 'leave':
-        return (color: Colors.blueGrey, text: 'On Leave');
+        c = Colors.blueGrey;
+        break;
       case 'pending':
-        return (color: Colors.orange, text: 'Pending');
-      case 'rejected':
-        return (color: Colors.deepOrange, text: 'Rejected');
+        c = Colors.amber;
+        break;
       default:
-        return (color: Colors.grey, text: 'Unknown');
+        c = Colors.grey;
     }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: c,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
   }
 }
