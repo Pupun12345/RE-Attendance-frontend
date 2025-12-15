@@ -30,6 +30,285 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     }
   }
 
+  void _showUserAgreementCard() {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "SmartNex.Tech Construction Attendance System\nUser Agreement",
+                style: TextStyle(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Effective Date: December 4, 2025",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                "Welcome to the SmartNex.Tech Attendance System (\"The Service\"). "
+                    "By accessing or using the Service, you agree to be bound by these "
+                    "Terms of Use and all applicable laws and regulations.",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+
+              // 1. Description of Service
+              Text(
+                "1. Description of Service",
+                style: TextStyle(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "The Service is a digital attendance and workforce management platform "
+                    "provided under contract specifically for use by Ray Engineering personnel "
+                    "and their authorized project managers.",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "The Service requires access to your device's Camera, Location (GPS), and "
+                    "Internet to function. It utilizes advanced Artificial Intelligence (AI) "
+                    "and image processing technology to:",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "• Image Capture & Verification (Camera/AI): Verify worker identity via "
+                    "facial recognition from images captured at sign-in/sign-out using the "
+                    "device's camera to feed data to the AI model.\n\n"
+                    "• Location Tracking (GPS): Accurately record the time and track the "
+                    "geographical location (geofencing) of the user at the point of "
+                    "attendance capture using GPS.\n\n"
+                    "• Data Management (Internet/Reporting): Provide real-time data to "
+                    "authorized project managers for payroll and compliance purposes, and "
+                    "facilitate the export and storage of attendance reports.",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+
+              const SizedBox(height: 14),
+              Text(
+                "1.1 Relationship to Privacy Policy",
+                style: TextStyle(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                "This User Agreement incorporates by reference the SmartNex.Tech Privacy Policy, "
+                    "which is available at:\n"
+                    "https://public-document.smartnex.tech/ray-enginerring/attainadnace-app/privacy-policy-playstore\n\n"
+                    "By agreeing to these Terms, you also acknowledge that you have read and "
+                    "understood our Privacy Policy, which governs the collection, use, and "
+                    "protection of your personal and sensitive data, including biometric and "
+                    "location data.",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+
+              const SizedBox(height: 16),
+              Text(
+                "2. User Obligations",
+                style: TextStyle(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "As a user (either as a Worker or a Project Manager) employed by or contracted "
+                    "with Ray Engineering, you agree to:",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                "• Accurate Data: Provide true, accurate, current, and complete information "
+                    "during the registration process.\n\n"
+                    "• Biometric Consent: Consent to the capture and processing of your image/"
+                    "face geometry for the sole purpose of identity verification within the "
+                    "Service. You understand that this data is considered sensitive and will be "
+                    "protected according to our Privacy Policy.\n\n"
+                    "• Location Tracking: Consent to the tracking and recording of your device's "
+                    "geographical location only at the time of clock-in and clock-out to verify "
+                    "on-site presence. Continuous, background location tracking is not performed "
+                    "unless explicitly consented to for specific, clearly defined project "
+                    "monitoring features.\n\n"
+                    "• Proper Use: Use the Service strictly for recording work attendance at "
+                    "designated project sites and not for any unauthorized, fraudulent, or illegal "
+                    "purposes.\n\n"
+                    "• Security: Keep your login credentials confidential and notify SmartNex.Tech "
+                    "immediately of any unauthorized use of your account.",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+
+              const SizedBox(height: 16),
+              Text(
+                "3. AI and Verification",
+                style: TextStyle(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "You acknowledge that the Service relies on AI models for identity verification. "
+                    "While highly accurate, no system is infallible. SmartNex.Tech retains the right "
+                    "for Project Managers (including those at Ray Engineering) to manually override "
+                    "or confirm attendance records in case of AI-flagged discrepancies, and "
+                    "SmartNex.Tech bears no liability for minor, occasional, or technical AI errors.",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+
+              const SizedBox(height: 16),
+              Text(
+                "4. Intellectual Property",
+                style: TextStyle(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "All rights, title, and interest in and to the Service (excluding content provided "
+                    "by users) are and will remain the exclusive property of SmartNex.Tech. The software, "
+                    "including the AI models and algorithms, is protected by copyright and other "
+                    "intellectual property laws.",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+
+              const SizedBox(height: 16),
+              Text(
+                "5. Fees and Payment",
+                style: TextStyle(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Access to and use of the Service is subject to the timely payment of the agreed-upon "
+                    "monthly or annual subscription fees (\"Fees\") by Ray Engineering or the contracting entity.",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "• Data Retention Window: SmartNex.Tech guarantees the retention of all client "
+                    "attendance and performance data for a period not exceeding three (3) months from "
+                    "the date of its collection (\"Active Retention Period\"). Data exceeding this Active "
+                    "Retention Period is subject to archival or permanent deletion without prior notice.\n\n"
+                    "• Fee Changes: SmartNex.Tech reserves the right to increase the Fees, including "
+                    "maintenance fees, upon providing users with at least thirty (30) days' written "
+                    "notice prior to the start of the next billing cycle. Continued use of the Service "
+                    "after the effective date of the Fee change constitutes acceptance of the new Fees.\n\n"
+                    "• Non-Payment and Suspension: Failure to pay the Fees when due constitutes a material "
+                    "breach of these Terms. SmartNex.Tech reserves the right, after providing a minimum of "
+                    "ten (10) days' notice of delinquency, to immediately suspend or revoke access to the "
+                    "Service.\n\n"
+                    "• Data Loss upon Revocation: In the event of revocation of service due to non-payment, "
+                    "the user acknowledges and agrees that SmartNex.Tech is under no obligation to retain "
+                    "any associated attendance and performance data (including data within the Active "
+                    "Retention Period), and such data may be permanently deleted and irrecoverable.",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+
+              const SizedBox(height: 16),
+              Text(
+                "6. Termination",
+                style: TextStyle(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "SmartNex.Tech may terminate or suspend your access to the Service immediately, without "
+                    "prior notice or liability, if you breach these Terms, including but not limited to "
+                    "the non-payment of Fees outlined in Section 5. Upon termination, your right to use "
+                    "the Service will immediately cease.",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+
+              const SizedBox(height: 16),
+              Text(
+                "7. Disclaimers",
+                style: TextStyle(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "The Service is provided on an \"AS IS\" and \"AS AVAILABLE\" basis. SmartNex.Tech makes no "
+                    "warranty that (i) the Service will meet your specific requirements, (ii) the Service will "
+                    "be uninterrupted, timely, secure, or error-free, or (iii) the results that may be obtained "
+                    "from the use of the Service will be accurate or reliable.",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+
+              const SizedBox(height: 16),
+              Text(
+                "8. Governing Law",
+                style: TextStyle(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "These Terms shall be governed and construed in accordance with the laws of the "
+                    "jurisdiction where SmartNex.Tech is headquartered, without regard to its conflict of "
+                    "law provisions.",
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+
+              const SizedBox(height: 16),
+              const Text(
+                "By creating the account, you are agreeing to these Terms of Use.",
+                style: TextStyle(fontSize: 14, height: 1.4, fontWeight: FontWeight.w600),
+              ),
+
+              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    "Close",
+                    style: TextStyle(color: primaryBlue),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showContactCard() {
     showDialog(
       context: context,
@@ -394,9 +673,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               icon: LucideIcons.fileSignature,
               title: "User Agreement",
               subtitle: "Learn about application usage rules.",
-              onTap: () {
-                // Abhi ke liye blank rakha, agar chaho to yahan bhi ek dialog bana sakte hain
-              },
+              onTap: _showUserAgreementCard,
             ),
             _buildSettingsCard(
               icon: LucideIcons.shieldCheck,
