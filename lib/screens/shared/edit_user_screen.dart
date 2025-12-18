@@ -47,16 +47,19 @@ class _EditUserScreenState extends State<EditUserScreen> {
   String? _existingImageUrl;
 
   @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: widget.user.name);
-    _userIdController = TextEditingController(text: widget.user.userId);
-    _phoneController = TextEditingController(text: widget.user.phone);
-    _emailController = TextEditingController(text: widget.user.email ?? '');
-    _selectedRole = widget.user.role;
+void initState() {
+  super.initState();
+  _nameController = TextEditingController(text: widget.user.name);
+  _userIdController = TextEditingController(text: widget.user.userId);
+  _phoneController = TextEditingController(text: widget.user.phone);
+  _emailController = TextEditingController(text: widget.user.email ?? '');
+  _selectedRole = widget.user.role;
 
-    _existingImageUrl = widget.user.profileImageUrl;
-  }
+  _existingImageUrl = widget.user.profileImageUrl;
+  
+  // Use isActive from your model to set the initial toggle state
+  _isUserDisabled = !widget.user.isActive; 
+}
 
   @override
   void dispose() {
@@ -179,14 +182,15 @@ class _EditUserScreenState extends State<EditUserScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final XFile? picked =
-    await _picker.pickImage(source: source, imageQuality: 70);
+  try {
+    final XFile? picked = await _picker.pickImage(source: source, imageQuality: 70);
     if (picked != null) {
-      setState(() {
-        _selectedImageFile = File(picked.path);
-      });
+      setState(() => _selectedImageFile = File(picked.path));
     }
+  } catch (e) {
+    _showError("Failed to pick image: $e");
   }
+}
 
  
 

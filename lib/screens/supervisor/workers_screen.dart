@@ -8,7 +8,7 @@ import 'package:smartcare_app/screens/supervisor/supervisor_dashboard_screen.dar
 import 'package:smartcare_app/screens/supervisor/worker_profile_screen.dart';
 
 class Worker {
-  final String id; // This is the MongoDB ID
+  final String id; // MongoDB ID
   final String name;
   final String userId;
   final String? profileImageUrl;
@@ -50,7 +50,6 @@ class _WorkersScreenState extends State<WorkersScreen> {
   bool _isLoading = true;
   String? _error;
 
-  // Dummy fallback worker used when loading fails
   final Worker _dummyWorker = Worker(
     id: 'dummy-1',
     name: 'umesh1402',
@@ -93,8 +92,10 @@ class _WorkersScreenState extends State<WorkersScreen> {
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         List<dynamic> usersJson = responseData['users'];
+
         setState(() {
-          _allWorkers = usersJson.map((json) => Worker.fromJson(json)).toList();
+          _allWorkers =
+              usersJson.map((json) => Worker.fromJson(json)).toList();
           _filteredWorkers = _allWorkers;
           _isLoading = false;
           _filterWorkers();
@@ -124,20 +125,6 @@ class _WorkersScreenState extends State<WorkersScreen> {
     });
   }
 
-  // Helper method for marking attendance (no changes needed here but included for context)
-  Future<void> _markAttendance(Worker worker) async {
-    // ... (logic omitted for brevity, it's not the cause of the error) ...
-  }
-
-  void _showSnackbar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-      ),
-    );
-  }
-
   Widget _buildWorkerRow(Worker worker) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -165,27 +152,43 @@ class _WorkersScreenState extends State<WorkersScreen> {
                 : null,
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(worker.name,
+
+          // ✅ RESPONSIVE TEXT AREA
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  worker.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  worker.userId,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style:
-                  const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-              Text(worker.userId,
-                  style: const TextStyle(fontSize: 13, color: Colors.grey)),
-            ],
+                  const TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+              ],
+            ),
           ),
-          const Spacer(),
+
+          const SizedBox(width: 10),
+
+          // ✅ BUTTON DOES NOT OVERFLOW
           ElevatedButton(
             onPressed: () {
-              // ✅ Updated Navigation: Passing dbId
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => WorkerProfileScreen(
                     name: worker.name,
                     userId: worker.userId,
-                    dbId: worker.id, // ✅ Passing the actual DB ID
+                    dbId: worker.id,
                   ),
                 ),
               );
@@ -193,10 +196,18 @@ class _WorkersScreenState extends State<WorkersScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: themeBlue,
               foregroundColor: Colors.white,
-              shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
-            child: const Text("Take Attendance", style: TextStyle(fontSize: 12)),
+            child: const Text(
+              "Take Attendance",
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12),
+            ),
           ),
         ],
       ),
@@ -209,11 +220,7 @@ class _WorkersScreenState extends State<WorkersScreen> {
     }
 
     if (_error != null) {
-      return ListView(
-        children: [
-          _buildWorkerRow(_dummyWorker),
-        ],
-      );
+      return ListView(children: [_buildWorkerRow(_dummyWorker)]);
     }
 
     if (_filteredWorkers.isEmpty) {
@@ -229,8 +236,7 @@ class _WorkersScreenState extends State<WorkersScreen> {
     return ListView.builder(
       itemCount: _filteredWorkers.length,
       itemBuilder: (context, index) {
-        final worker = _filteredWorkers[index];
-        return _buildWorkerRow(worker);
+        return _buildWorkerRow(_filteredWorkers[index]);
       },
     );
   }
@@ -247,7 +253,8 @@ class _WorkersScreenState extends State<WorkersScreen> {
           onPressed: () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const SupervisorDashboardScreen()),
+              MaterialPageRoute(
+                  builder: (_) => const SupervisorDashboardScreen()),
             );
           },
         ),
@@ -267,8 +274,9 @@ class _WorkersScreenState extends State<WorkersScreen> {
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white,
-                border:
-                OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
             const SizedBox(height: 15),

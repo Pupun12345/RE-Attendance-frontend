@@ -16,7 +16,6 @@ class AdminOvertimeViewScreen extends StatefulWidget {
       _AdminOvertimeViewScreenState();
 }
 
-// 1. ADD TabController
 class _AdminOvertimeViewScreenState extends State<AdminOvertimeViewScreen>
     with SingleTickerProviderStateMixin {
   final Color primaryBlue = const Color(0xFF0D47A1);
@@ -26,7 +25,6 @@ class _AdminOvertimeViewScreenState extends State<AdminOvertimeViewScreen>
   bool _isLoading = true;
   String? _token;
 
-  // 2. CREATE LISTS FOR EACH STATUS
   List<OvertimeRecord> _pendingRequests = [];
   List<OvertimeRecord> _approvedRequests = [];
   List<OvertimeRecord> _rejectedRequests = [];
@@ -45,7 +43,6 @@ class _AdminOvertimeViewScreenState extends State<AdminOvertimeViewScreen>
     );
   }
 
-  // 3. FETCH ALL RECORDS (NOT JUST 'approved')
   Future<void> _fetchAllOvertime() async {
     setState(() => _isLoading = true);
     try {
@@ -56,12 +53,9 @@ class _AdminOvertimeViewScreenState extends State<AdminOvertimeViewScreen>
         return;
       }
 
-      // Fetch ALL records (no status filter)
       final url = Uri.parse('$apiBaseUrl/api/v1/overtime');
-      final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer $_token'},
-      );
+      final response =
+      await http.get(url, headers: {'Authorization': 'Bearer $_token'});
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -69,7 +63,6 @@ class _AdminOvertimeViewScreenState extends State<AdminOvertimeViewScreen>
             .map((r) => OvertimeRecord.fromJson(r))
             .toList();
 
-        // Filter records into the 3 lists
         setState(() {
           _pendingRequests =
               allRecords.where((r) => r.status == 'pending').toList();
@@ -82,63 +75,36 @@ class _AdminOvertimeViewScreenState extends State<AdminOvertimeViewScreen>
         _showError("Failed to load overtime records.");
       }
     } catch (e) {
-      _showError("An error occurred: ${e.toString()}");
+      _showError("An error occurred: $e");
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // 4. ADD THE ACTION HANDLER
   Future<void> _handleOvertimeAction(
       OvertimeRecord request, bool isApproved) async {
-    if (_token == null) {
-      _showError("Not authorized.");
-      return;
-    }
+    if (_token == null) return;
 
     final action = isApproved ? 'approve' : 'reject';
     final url = Uri.parse('$apiBaseUrl/api/v1/overtime/${request.id}/$action');
 
-    try {
-      final response = await http.put(
-        url,
-        headers: {'Authorization': 'Bearer $_token'},
-      );
+    final response =
+    await http.put(url, headers: {'Authorization': 'Bearer $_token'});
 
-      if (response.statusCode == 200) {
-        // Success: Move item from 'pending' list to the correct new list
-        setState(() {
-          _pendingRequests.remove(request);
-          if (isApproved) {
-            request.status = 'approved';
-            _approvedRequests.add(request);
-          } else {
-            request.status = 'rejected';
-            _rejectedRequests.add(request);
-          }
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isApproved
-                  ? "✅ Overtime for ${request.user.name} approved!"
-                  : "❌ Overtime for ${request.user.name} rejected!",
-            ),
-            backgroundColor: isApproved ? Colors.green : Colors.redAccent,
-          ),
-        );
-      } else {
-        final data = jsonDecode(response.body);
-        _showError(data['message'] ?? 'Failed to process request.');
-      }
-    } catch (e) {
-      _showError("An error occurred: ${e.toString()}");
+    if (response.statusCode == 200) {
+      setState(() {
+        _pendingRequests.remove(request);
+        if (isApproved) {
+          request.status = 'approved';
+          _approvedRequests.add(request);
+        } else {
+          request.status = 'rejected';
+          _rejectedRequests.add(request);
+        }
+      });
     }
   }
 
-  // 5. Main UI
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,238 +119,173 @@ class _AdminOvertimeViewScreenState extends State<AdminOvertimeViewScreen>
         ),
         title: Text(
           "Overtime View",
-          style: TextStyle(
-            color: primaryBlue,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold),
         ),
-        // 6. ADD THE TAB BAR
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: primaryBlue,
           labelColor: primaryBlue,
           unselectedLabelColor: Colors.grey,
-          indicatorColor: primaryBlue,
           tabs: [
-            Tab(
-                child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                  const Icon(LucideIcons.clock3),
-                  const SizedBox(width: 8),
-                  Text("Pending (${_pendingRequests.length})")
-                ])),
-            Tab(
-                child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                  const Icon(LucideIcons.checkCircle),
-                  const SizedBox(width: 8),
-                  Text("Approved (${_approvedRequests.length})")
-                ])),
-            Tab(
-                child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                  const Icon(LucideIcons.xCircle),
-                  const SizedBox(width: 8),
-                  Text("Rejected (${_rejectedRequests.length})")
-                ])),
+            _buildTab(LucideIcons.clock3, "Pending", _pendingRequests.length),
+            _buildTab(
+                LucideIcons.checkCircle, "Approved", _approvedRequests.length),
+            _buildTab(
+                LucideIcons.xCircle, "Rejected", _rejectedRequests.length),
           ],
         ),
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: primaryBlue))
           : TabBarView(
-              controller: _tabController,
-              children: [
-                // PENDING Tab
-                _buildListView(
-                  requests: _pendingRequests,
-                  emptyMessage: "No pending overtime requests.",
-                  isPendingTab: true,
-                ),
-                // APPROVED Tab
-                _buildListView(
-                  requests: _approvedRequests,
-                  emptyMessage: "No approved overtime records.",
-                ),
-                // REJECTED Tab
-                _buildListView(
-                  requests: _rejectedRequests,
-                  emptyMessage: "No rejected overtime records.",
-                ),
-              ],
-            ),
+        controller: _tabController,
+        children: [
+          _buildListView(
+              requests: _pendingRequests,
+              emptyMessage: "No pending overtime requests.",
+              isPendingTab: true),
+          _buildListView(
+              requests: _approvedRequests,
+              emptyMessage: "No approved overtime records."),
+          _buildListView(
+              requests: _rejectedRequests,
+              emptyMessage: "No rejected overtime records."),
+        ],
+      ),
     );
   }
 
-  // 7. HELPER: Builds a list for a tab
+  Widget _buildTab(IconData icon, String title, int count) {
+    return Tab(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              "$title ($count)",
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildListView({
     required List<OvertimeRecord> requests,
     required String emptyMessage,
     bool isPendingTab = false,
   }) {
     if (requests.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _fetchAllOvertime,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            SizedBox(height: MediaQuery.of(context).size.height / 3),
-            Center(
-              child: Text(
-                emptyMessage,
-                style: const TextStyle(color: Colors.black54, fontSize: 16),
-              ),
-            ),
-          ],
-        ),
-      );
+      return Center(
+          child: Text(emptyMessage,
+              style:
+              const TextStyle(fontSize: 16, color: Colors.black54)));
     }
 
-    return RefreshIndicator(
-      onRefresh: _fetchAllOvertime,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: requests.length,
-        itemBuilder: (context, index) {
-          final request = requests[index];
-          // Use the correct card based on the tab
-          return isPendingTab
-              ? _buildPendingRequestCard(request)
-              : _buildHistoryRequestCard(request);
-        },
-      ),
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: requests.length,
+      itemBuilder: (context, index) {
+        final request = requests[index];
+        return isPendingTab
+            ? _buildPendingRequestCard(request)
+            : _buildHistoryRequestCard(request);
+      },
     );
   }
 
-  // 8. HELPER: Card for PENDING items (with buttons)
   Widget _buildPendingRequestCard(OvertimeRecord request) {
     return Card(
-      color: Colors.white,
-      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: lightBlue,
-                  child: Icon(LucideIcons.user, color: primaryBlue),
-                ),
-                const SizedBox(width: 12),
-                Column(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            CircleAvatar(
+              backgroundColor: lightBlue,
+              child: Icon(LucideIcons.user, color: primaryBlue),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      request.user.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: primaryBlue,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      "Role: ${request.user.role}",
-                      style: const TextStyle(color: Colors.black54, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ],
+                    Text(request.user.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: primaryBlue)),
+                    Text("Role: ${request.user.role}",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                        const TextStyle(fontSize: 13, color: Colors.grey)),
+                  ]),
             ),
-            const Divider(height: 16),
-            Text(
-              "Date: ${DateFormat("MMM dd, yyyy").format(request.date)}",
-              style: const TextStyle(color: Colors.black87, fontSize: 14),
-            ),
-            Text(
-              "Hours: ${request.hours.toStringAsFixed(1)} hrs",
-              style: const TextStyle(color: Colors.black87, fontSize: 14),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "Reason: ${request.reason}",
-              style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 14,
-                  fontStyle: FontStyle.italic),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.check, size: 18),
-                  label: const Text("Approve"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: () => _handleOvertimeAction(request, true),
-                ),
-                const SizedBox(width: 10),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.close, size: 18),
-                  label: const Text("Reject"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: () => _handleOvertimeAction(request, false),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ]),
+          const Divider(),
+          Text(
+              "Date: ${DateFormat("MMM dd, yyyy").format(request.date)}"),
+          Text("Hours: ${request.hours.toStringAsFixed(1)} hrs"),
+          Text("Reason: ${request.reason}",
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontStyle: FontStyle.italic)),
+          const SizedBox(height: 10),
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            ElevatedButton(
+                onPressed: () => _handleOvertimeAction(request, true),
+                style:
+                ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: const Text("Approve")),
+            const SizedBox(width: 10),
+            ElevatedButton(
+                onPressed: () => _handleOvertimeAction(request, false),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent),
+                child: const Text("Reject")),
+          ])
+        ]),
       ),
     );
   }
 
-  // 9. HELPER: Card for APPROVED/REJECTED items (no buttons)
   Widget _buildHistoryRequestCard(OvertimeRecord request) {
     return Card(
-      color: Colors.white,
-      elevation: 1,
       margin: const EdgeInsets.symmetric(vertical: 6),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: lightBlue,
           child: Icon(
-            request.status == 'approved'
-                ? LucideIcons.check
-                : LucideIcons.x,
-            color: request.status == 'approved' ? Colors.green : Colors.red,
-          ),
+              request.status == 'approved'
+                  ? LucideIcons.check
+                  : LucideIcons.x,
+              color:
+              request.status == 'approved' ? Colors.green : Colors.red),
         ),
-        title: Text(
-          request.user.name,
-          style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold),
-        ),
+        title: Text(request.user.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style:
+            TextStyle(color: primaryBlue, fontWeight: FontWeight.bold)),
         subtitle: Text(
           "Date: ${DateFormat("MMM dd, yyyy").format(request.date)}\nReason: ${request.reason}",
-          style: const TextStyle(color: Colors.black54),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
         ),
-        trailing: Text(
-          "${request.hours} hrs",
-          style: TextStyle(
-            color: request.status == 'approved' ? Colors.green : Colors.red,
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-          ),
-        ),
+        trailing: Text("${request.hours} hrs",
+            style: TextStyle(
+                color: request.status == 'approved'
+                    ? Colors.green
+                    : Colors.red,
+                fontWeight: FontWeight.bold)),
       ),
     );
   }

@@ -37,128 +37,134 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   // 1. FILE SAVING
   // ==========================
   Future<void> _saveCsvFile(String csvData, String suggestedFileName) async {
-    try {
-      final List<int> encoded = utf8.encode(csvData);
-      final Uint8List bytes = Uint8List.fromList(encoded);
+  try {
+    final List<int> encoded = utf8.encode(csvData);
+    final Uint8List bytes = Uint8List.fromList(encoded);
 
-      await FileSaver.instance.saveFile(
-        name: suggestedFileName.replaceAll('.csv', ''),
-        bytes: bytes,
-        ext: 'csv',
-        mimeType: MimeType.csv,
+    // ✅ Using 'Link' for better Android compatibility
+    await FileSaver.instance.saveFile(
+      name: suggestedFileName.replaceAll('.csv', ''),
+      bytes: bytes,
+      ext: 'csv',
+      mimeType: MimeType.csv,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Report saved to Downloads folder!"),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 4),
+        ),
       );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Report downloaded successfully!"),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      _showError("Error saving file: ${e.toString()}");
     }
+  } catch (e) {
+    _showError("Error saving file: ${e.toString()}");
   }
+}
 
   // ==========================
   // 2. DAILY REPORT GENERATOR
   // ==========================
   String _generateDailyCSV(List<dynamic> data) {
-    final List<List<dynamic>> rows = [];
-    rows.add([
-      'SL No.', 'UNIQUE ID', 'DESIGNATION', 'NAME', 'DATE', 
-      'PRESENT', 'OT', 'CHECK-IN', 'CHECK-OUT', 
-      'LOCATION AREA', 'LOCATION SIZE'
-    ]);
-
-    for (int i = 0; i < data.length; i++) {
-      final record = data[i] ?? {};
-      final user = record['user'] ?? {};
-
-      rows.add([
-        i + 1,
-        user['uniqueId'] ?? user['employeeCode'] ?? 'N/A',
-        user['designation'] ?? user['role'] ?? 'N/A',
-        user['name'] ?? 'N/A',
-        _formatDate(record['date']),
-        _getPresentStatus(record),
-        record['ot'] ?? 0,
-        _formatTime(record['checkInTime']),
-        _formatTime(record['checkOutTime']),
-        record['locationArea'] ?? 'N/A',
-        _formatLocation(record),
-      ]);
+  // 1. Sort data by Role (Management -> Supervisor -> Worker)
+  data.sort((a, b) {
+    int getPriority(String? role) {
+      role = role?.toUpperCase() ?? '';
+      if (role.contains('MANAGEMENT')) return 1;
+      if (role.contains('SUPERVISOR')) return 2;
+      return 3; // Worker
     }
-    return const ListToCsvConverter().convert(rows);
+    return getPriority(a['user']?['role']).compareTo(getPriority(b['user']?['role']));
+  });
+
+  final List<List<dynamic>> rows = [];
+  rows.add([
+    'SL No.', 'UNIQUE ID', 'DESIGNATION', 'NAME', 'DATE', 
+    'PRESENT', 'OT', 'CHECK-IN', 'CHECK-OUT', 
+    'LOCATION AREA', 'LOCATION SIZE (LONG-LATIT)'
+  ]);
+
+  for (int i = 0; i < data.length; i++) {
+    final record = data[i];
+    final user = record['user'] ?? {};
+
+    rows.add([
+      i + 1,
+      user['userId'] ?? 'N/A',
+      (user['role'] ?? 'N/A').toString().toUpperCase(),
+      user['name'] ?? 'N/A',
+      _formatDate(record['date']),
+      record['status']?.toUpperCase() ?? 'ABSENT',
+      record['ot'] ?? 0,
+      _formatTime(record['checkInTime']),
+      _formatTime(record['checkOutTime']),
+      record['checkInLocation']?['address'] ?? 'KALINGA NAGAR, JAJPUR', // Example from your image
+      '${record['checkInLocation']?['longitude'] ?? "0.0"} - ${record['checkInLocation']?['latitude'] ?? "0.0"}',
+    ]);
   }
+  return const ListToCsvConverter().convert(rows);
+}
 
   // ==========================
   // 3. MONTHLY REPORT GENERATOR
   // ==========================
-  String _generateMonthlySummaryCSV(List<dynamic> data) {
-    final Map<String, Map<String, dynamic>> summary = {};
+  // lib/screens/admin/admin_reports_screen.dart
 
-    for (var record in data) {
-      final user = record['user'] ?? {};
-      final userId = user['_id'] ?? user['id'] ?? user['uniqueId'] ?? 'UNKNOWN';
-
-      if (!summary.containsKey(userId)) {
-        summary[userId] = {
-          'uniqueId': user['uniqueId'] ?? 'N/A',
-          'designation': (user['designation'] ?? user['role'] ?? 'WORKER').toString().toUpperCase(),
-          'name': user['name'] ?? 'N/A',
-          'present': 0,
-          'absent': 0,
-          'holidays': 0,
-          'ot': 0,
-        };
-      }
-
-      final status = _getPresentStatus(record).toUpperCase();
-      if (status == 'PRESENT') {
-        summary[userId]!['present']++;
-      } else if (status == 'ABSENT') {
-        summary[userId]!['absent']++;
-      } else if (status == 'HOLIDAY') {
-        summary[userId]!['holidays']++;
-      }
-
-      final ot = record['ot'] ?? 0;
-      summary[userId]!['ot'] += ot;
-    }
-
-    List<Map<String, dynamic>> sortedList = summary.values.toList();
-    int getPriority(String role) {
-      if (role.contains('MANAGEMENT')) return 1;
-      if (role.contains('SUPERVISOR')) return 2;
-      if (role.contains('WORKER')) return 3;
-      return 4; 
-    }
-    sortedList.sort((a, b) => getPriority(a['designation']).compareTo(getPriority(b['designation'])));
-
-    final List<List<dynamic>> rows = [];
-    rows.add([
-      'SL No.', 'UNIQUE ID', 'DESIGNATION', 'NAME', 
-      'FROM DATE - TO DATE', 'PRESENT', 'ABSENT', 'HOLIDAYS', 'OT'
-    ]);
-
-    String dateRangeStr = "N/A";
-    if (_monthlyFromDate != null && _monthlyToDate != null) {
-      final f = DateFormat('dd-MM-yyyy');
-      dateRangeStr = "${f.format(_monthlyFromDate!)} TO ${f.format(_monthlyToDate!)}";
-    }
-
-    for (int i = 0; i < sortedList.length; i++) {
-      final item = sortedList[i];
-      rows.add([
-        i + 1, item['uniqueId'], item['designation'], item['name'],
-        dateRangeStr, item['present'], item['absent'], item['holidays'], item['ot']
-      ]);
-    }
-
-    return const ListToCsvConverter().convert(rows);
+String _generateMonthlySummaryCSV(List<dynamic> data) {
+  final Map<String, Map<String, dynamic>> summary = {};
+  
+  String dateRangeStr = "N/A";
+  if (_monthlyFromDate != null && _monthlyToDate != null) {
+    dateRangeStr = "${DateFormat('dd/MM').format(_monthlyFromDate!)} - ${DateFormat('dd/MM').format(_monthlyToDate!)}";
   }
+
+  for (var record in data) {
+    final user = record['user'] ?? {};
+    final String uid = user['userId'] ?? 'Unknown';
+
+    if (!summary.containsKey(uid)) {
+      summary[uid] = {
+        'uniqueId': uid,
+        'name': user['name'] ?? 'N/A',
+        'designation': (user['role'] ?? 'WORKER').toString().toUpperCase(),
+        'present': 0,
+        'absent': 0,
+        'holidays': 0,
+        'ot': 0,
+      };
+    }
+
+    // Logic to increment values based on status
+    String status = (record['status'] ?? '').toString().toLowerCase();
+    if (status == 'present') {
+      summary[uid]!['present'] = (summary[uid]!['present'] as int) + 1;
+    } else if (status == 'absent') {
+      summary[uid]!['absent'] = (summary[uid]!['absent'] as int) + 1;
+    }
+    
+    summary[uid]!['ot'] = (summary[uid]!['ot'] as int) + (record['ot'] ?? 0);
+  }
+
+  List<Map<String, dynamic>> sortedList = summary.values.toList();
+  sortedList.sort((a, b) {
+    int getP(String r) => r.contains('MANAGEMENT') ? 1 : r.contains('SUPERVISOR') ? 2 : 3;
+    return getP(a['designation']).compareTo(getP(b['designation']));
+  });
+
+  final List<List<dynamic>> rows = [
+    ['SL No.', 'UNIQUE ID', 'DESIGNATION', 'NAME', 'FROM DATE - TO DATE', 'PRESENT', 'ABSENT', 'HOLIDAYS', 'OT']
+  ];
+
+  for (int i = 0; i < sortedList.length; i++) {
+    final item = sortedList[i];
+    rows.add([
+      i + 1, item['uniqueId'], item['designation'], item['name'],
+      dateRangeStr, item['present'], item['absent'], item['holidays'], item['ot']
+    ]);
+  }
+  return const ListToCsvConverter().convert(rows);
+}
 
   // ==========================
   // 4. API HANDLER
