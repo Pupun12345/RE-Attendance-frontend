@@ -171,6 +171,7 @@ You have the right to request access to, correction of, or deletion of your pers
         await prefs.setString('token', data['token']);
         await prefs.setString('user', jsonEncode(user));
         await prefs.setString('userName', user['name']);
+        await prefs.setString('role', user['role']);
 
         if (!mounted) return;
 

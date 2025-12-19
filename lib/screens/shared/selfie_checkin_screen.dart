@@ -30,7 +30,7 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
   Position? _currentPosition;
   bool _isLoading = false;
   String _userName = "Unknown";
-  
+
   bool _isPendingMode = false;
   bool _isRetrying = false;
   int _retrySeconds = 0;
@@ -45,10 +45,12 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
     fetchLocation();
     _loadUserData();
     _checkPendingData();
-    
+
     _checkConnectivityAndSync();
 
-    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+    Connectivity()
+        .onConnectivityChanged
+        .listen((List<ConnectivityResult> results) {
       if (results.any((r) => r != ConnectivityResult.none)) {
         _attemptSync();
       }
@@ -86,10 +88,10 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
         selfieImage = File(jsonData['imagePath']);
         coordsText = "Lat: ${jsonData['lat']}, Lng: ${jsonData['lng']}";
         location = jsonData['location'];
-        dateTime = jsonData['displayTime'] ?? "Pending Time"; 
-        
+        dateTime = jsonData['displayTime'] ?? "Pending Time";
+
         if (needsAdmin) {
-           _retrySeconds = 60; 
+          _retrySeconds = 60;
         }
       });
     }
@@ -97,7 +99,7 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
 
   Future<void> _attemptSync() async {
     if (!_isPendingMode) return;
-    
+
     final prefs = await SharedPreferences.getInstance();
     String? pending = prefs.getString("pending_checkin");
     if (pending == null) return;
@@ -106,14 +108,8 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
     File img = File(pendingData['imagePath']);
     bool needsAdmin = pendingData['needsAdminApproval'] ?? false;
 
-    await _uploadData(
-      img,
-      pendingData['lat'],
-      pendingData['lng'],
-      pendingData['dateTime'],
-      true, 
-      needsAdmin 
-    );
+    await _uploadData(img, pendingData['lat'], pendingData['lng'],
+        pendingData['dateTime'], true, needsAdmin);
   }
 
   void updateDateTime() {
@@ -125,13 +121,25 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
       final now = DateTime.now();
       setState(() {
         dateTime =
-        "${now.day.toString().padLeft(2, '0')} ${_month(now.month)} ${now.year} ${_formatTime(now)}";
+            "${now.day.toString().padLeft(2, '0')} ${_month(now.month)} ${now.year} ${_formatTime(now)}";
       });
     });
   }
 
-  String _month(int m) =>
-      ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1];
+  String _month(int m) => [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+      ][m - 1];
 
   String _formatTime(DateTime now) {
     int hour = now.hour;
@@ -151,13 +159,16 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
     if (p == LocationPermission.deniedForever) return;
 
     try {
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best);
       _currentPosition = pos;
       setState(() {
-        coordsText = "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
+        coordsText =
+            "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
       });
 
-      List<Placemark> places = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      List<Placemark> places =
+          await placemarkFromCoordinates(pos.latitude, pos.longitude);
       Placemark place = places.first;
       setState(() {
         location = "${place.locality ?? ""}, ${place.subLocality ?? ""}";
@@ -182,23 +193,32 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
     }
   }
 
-  Future<void> _uploadData(File img, double lat, double lng, String dt, bool isRetry, bool sendToAdminQueue) async {
+  Future<void> _uploadData(File img, double lat, double lng, String dt,
+      bool isRetry, bool sendToAdminQueue) async {
     if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("token");
-
-      String endpoint = sendToAdminQueue 
-          ? "$_apiUrl/api/v1/attendance/checkin-pending" 
-          : "$_apiUrl/api/v1/attendance/checkin";        
+      final role = prefs.getString("role");
+      String endpoint;
+      if (role == 'worker') {
+        endpoint = sendToAdminQueue
+            ? "$_apiUrl/api/v1/attendance/checkin-pending"
+            : "$_apiUrl/api/v1/attendance/checkin";
+      } else {
+        endpoint = sendToAdminQueue
+            ? "$_apiUrl/api/v1/attendance/supervisor/checkin-pending"
+            : "$_apiUrl/api/v1/attendance/supervisor/checkin";
+      }
 
       var request = http.MultipartRequest('POST', Uri.parse(endpoint));
       request.headers["Authorization"] = "Bearer $token";
 
       request.fields["location"] = "$lat,$lng";
-      request.fields["dateTime"] = isRetry ? dt : DateTime.now().toIso8601String();
+      request.fields["dateTime"] =
+          isRetry ? dt : DateTime.now().toIso8601String();
 
       request.files.add(await http.MultipartFile.fromPath(
         'attendanceImage',
@@ -212,19 +232,18 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
       if (res.statusCode == 200 || res.statusCode == 201) {
         _retryTimer?.cancel();
         await prefs.remove("pending_checkin");
-        
+
         setState(() {
           _isPendingMode = false;
           _isRetrying = false;
         });
 
-        String msg = sendToAdminQueue 
-            ? "Sent to Admin for Approval (Network Delay)" 
+        String msg = sendToAdminQueue
+            ? "Sent to Admin for Approval (Network Delay)"
             : "Checked In Successfully!";
-            
+
         _showSuccess(msg);
         if (mounted) Navigator.pop(context);
-        
       } else {
         _retryTimer?.cancel();
         final responseData = jsonDecode(res.body);
@@ -232,16 +251,16 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
       }
     } catch (e) {
       if (!isRetry) {
-        _startOneMinuteTimer(); 
+        _startOneMinuteTimer();
       }
     } finally {
-      if(mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   void _startOneMinuteTimer() {
-    _savePending(needsAdminApproval: false); 
-    
+    _savePending(needsAdminApproval: false);
+
     setState(() {
       _isRetrying = true;
       _retrySeconds = 0;
@@ -249,20 +268,20 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
 
     _retryTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
-      
+
       setState(() {
         _retrySeconds++;
       });
 
       if (_retrySeconds % 5 == 0) {
-        _checkConnectivityAndSync(); 
+        _checkConnectivityAndSync();
       }
 
       if (_retrySeconds >= 60) {
         timer.cancel();
         setState(() => _isRetrying = false);
         _savePending(needsAdminApproval: true);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text("Network timeout. Request saved for Admin Approval."),
           backgroundColor: Colors.orange,
@@ -276,54 +295,47 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
     if (selfieImage == null) return;
     if (_currentPosition == null) return;
 
-    await _uploadData(
-      selfieImage!,
-      _currentPosition!.latitude,
-      _currentPosition!.longitude,
-      "", 
-      false, 
-      false  
-    );
+    await _uploadData(selfieImage!, _currentPosition!.latitude,
+        _currentPosition!.longitude, "", false, false);
   }
 
-  
+  Future<void> _savePending({required bool needsAdminApproval}) async {
+    if (selfieImage == null) return;
 
-Future<void> _savePending({required bool needsAdminApproval}) async {
-  if (selfieImage == null) return;
+    // ✅ FIX: Move file from Cache to Permanent Storage
+    final directory = await getApplicationDocumentsDirectory();
+    final String fileName =
+        'checkin_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final String newPath = path.join(directory.path, fileName);
 
-  // ✅ FIX: Move file from Cache to Permanent Storage
-  final directory = await getApplicationDocumentsDirectory();
-  final String fileName = 'checkin_${DateTime.now().millisecondsSinceEpoch}.jpg';
-  final String newPath = path.join(directory.path, fileName);
-  
-  // Copy the file
-  final File newImage = await selfieImage!.copy(newPath);
+    // Copy the file
+    final File newImage = await selfieImage!.copy(newPath);
 
-  final prefs = await SharedPreferences.getInstance();
-  final data = {
-    "imagePath": newImage.path, // ✅ Save the PERMANENT path
-    "lat": _currentPosition!.latitude,
-    "lng": _currentPosition!.longitude,
-    "dateTime": DateTime.now().toIso8601String(),
-    "displayTime": dateTime,
-    "location": location,
-    "needsAdminApproval": needsAdminApproval, 
-  };
-  
-  await prefs.setString("pending_checkin", jsonEncode(data));
+    final prefs = await SharedPreferences.getInstance();
+    final data = {
+      "imagePath": newImage.path, // ✅ Save the PERMANENT path
+      "lat": _currentPosition!.latitude,
+      "lng": _currentPosition!.longitude,
+      "dateTime": DateTime.now().toIso8601String(),
+      "displayTime": dateTime,
+      "location": location,
+      "needsAdminApproval": needsAdminApproval,
+    };
 
-  setState(() {
-    _isPendingMode = true;
-    selfieImage = newImage; // Update UI to refer to the safe file
-  });
-  
-  if (!needsAdminApproval && _retrySeconds == 0) {
-     _showError("No Internet. Retrying for 1 minute...");
+    await prefs.setString("pending_checkin", jsonEncode(data));
+
+    setState(() {
+      _isPendingMode = true;
+      selfieImage = newImage; // Update UI to refer to the safe file
+    });
+
+    if (!needsAdminApproval && _retrySeconds == 0) {
+      _showError("No Internet. Retrying for 1 minute...");
+    }
   }
-}
 
   void _showError(String msg) {
-    if(!mounted) return;
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
       backgroundColor: Colors.red,
@@ -331,7 +343,7 @@ Future<void> _savePending({required bool needsAdminApproval}) async {
   }
 
   void _showSuccess(String msg) {
-    if(!mounted) return;
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
       backgroundColor: Colors.green,
@@ -350,53 +362,72 @@ Future<void> _savePending({required bool needsAdminApproval}) async {
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.pop(ctx),
         ),
-        title: const Text("Selfie Punch", style: TextStyle(color: Colors.white)),
+        title:
+            const Text("Selfie Punch", style: TextStyle(color: Colors.white)),
         centerTitle: true,
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           children: [
-            Row(children: [const Icon(Icons.access_time), const SizedBox(width: 8), Text(dateTime)]),
-            Row(children: [const Icon(Icons.person_outline), const SizedBox(width: 8), Text(_userName)]),
-            
+            Row(children: [
+              const Icon(Icons.access_time),
+              const SizedBox(width: 8),
+              Text(dateTime)
+            ]),
+            Row(children: [
+              const Icon(Icons.person_outline),
+              const SizedBox(width: 8),
+              Text(_userName)
+            ]),
             const Spacer(),
             if (hasImage)
-              ClipOval(child: Image.file(selfieImage!, height: 160, width: 160, fit: BoxFit.cover)),
-            
+              ClipOval(
+                  child: Image.file(selfieImage!,
+                      height: 160, width: 160, fit: BoxFit.cover)),
             if (_isRetrying) ...[
-               const SizedBox(height: 20),
-               Text("Retrying connection... (${60 - _retrySeconds}s left)", 
-                 style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-               const SizedBox(height: 5),
-               LinearProgressIndicator(value: _retrySeconds / 60, color: Colors.orange),
+              const SizedBox(height: 20),
+              Text("Retrying connection... (${60 - _retrySeconds}s left)",
+                  style: const TextStyle(
+                      color: Colors.orange, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 5),
+              LinearProgressIndicator(
+                  value: _retrySeconds / 60, color: Colors.orange),
             ],
-
             const SizedBox(height: 20),
-            Row(children: [const Icon(Icons.gps_fixed), const SizedBox(width: 8), Expanded(child: Text(coordsText))]),
-            Row(children: [const Icon(Icons.location_on_outlined), const SizedBox(width: 8), Expanded(child: Text(location))]),
+            Row(children: [
+              const Icon(Icons.gps_fixed),
+              const SizedBox(width: 8),
+              Expanded(child: Text(coordsText))
+            ]),
+            Row(children: [
+              const Icon(Icons.location_on_outlined),
+              const SizedBox(width: 8),
+              Expanded(child: Text(location))
+            ]),
             const SizedBox(height: 20),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _isLoading || _isRetrying
                     ? null
                     : (_isPendingMode
-                    ? _attemptSync
-                    : (hasImage ? confirmCheckIn : openCamera)),
+                        ? _attemptSync
+                        : (hasImage ? confirmCheckIn : openCamera)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: themeBlue,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50)),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                  _isPendingMode 
-                      ? "Pending (Tap to Sync)" 
-                      : (hasImage ? "Confirm Check-In" : "Take Photo"),
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                ),
+                        _isPendingMode
+                            ? "Pending (Tap to Sync)"
+                            : (hasImage ? "Confirm Check-In" : "Take Photo"),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
               ),
             )
           ],

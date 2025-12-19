@@ -53,7 +53,7 @@ class _WorkerOvertimeSubmissionScreenState
 
   void _startDateTimeTicker() {
     _updateDateTime();
-    timer = Timer.periodic(const Duration(seconds: 1), () {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       _updateDateTime();
     });
   }

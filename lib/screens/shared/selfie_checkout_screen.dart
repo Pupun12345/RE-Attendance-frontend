@@ -11,7 +11,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:smartcare_app/utils/constants.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:path_provider/path_provider.dart'; 
+import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 class SelfieCheckOutScreen extends StatefulWidget {
@@ -30,7 +30,7 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
   Position? _currentPosition;
   bool _isLoading = false;
   String _userName = "Unknown";
-  
+
   // 🔹 Timer Logic State
   bool _isPendingMode = false;
   bool _isRetrying = false;
@@ -47,15 +47,16 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     fetchLocation();
     _loadUserData();
     _checkPendingData();
-    
+
     _checkConnectivityAndSync();
 
-    _connectivitySub =
-        Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
-          if (results.any((r) => r != ConnectivityResult.none)) {
-            _attemptSync();
-          }
-        });
+    _connectivitySub = Connectivity()
+        .onConnectivityChanged
+        .listen((List<ConnectivityResult> results) {
+      if (results.any((r) => r != ConnectivityResult.none)) {
+        _attemptSync();
+      }
+    });
   }
 
   @override
@@ -93,9 +94,9 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
         coordsText = jsonData['coordsText'] ?? coordsText;
         location = jsonData['location'] ?? location;
         dateTime = jsonData['displayTime'] ?? dateTime;
-        
+
         if (needsAdmin) {
-           _retrySeconds = 60;
+          _retrySeconds = 60;
         }
       });
     }
@@ -103,7 +104,7 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
 
   Future<void> _attemptSync() async {
     if (!_isPendingMode) return;
-    
+
     final prefs = await SharedPreferences.getInstance();
     String? pending = prefs.getString("pending_checkout");
     if (pending == null) return;
@@ -113,13 +114,12 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     bool needsAdmin = pendingData['needsAdminApproval'] ?? false;
 
     await _uploadCheckout(
-      imageFile: img,
-      lat: (pendingData['lat'] as num).toDouble(),
-      lng: (pendingData['lng'] as num).toDouble(),
-      dt: pendingData['dateTime'],
-      isRetry: true,
-      sendToAdminQueue: needsAdmin
-    );
+        imageFile: img,
+        lat: (pendingData['lat'] as num).toDouble(),
+        lng: (pendingData['lng'] as num).toDouble(),
+        dt: pendingData['dateTime'],
+        isRetry: true,
+        sendToAdminQueue: needsAdmin);
   }
 
   void updateDateTime() {
@@ -139,8 +139,18 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
 
   String _month(int m) {
     const months = [
-      "Jan","Feb","Mar","Apr","May","Jun",
-      "Jul","Aug","Sep","Oct","Nov","Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
     ];
     return months[m - 1];
   }
@@ -195,7 +205,7 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
       if (mounted) {
         setState(() {
           coordsText =
-          "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
+              "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
         });
       }
 
@@ -230,7 +240,7 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
         if (mounted) {
           setState(() {
             location =
-            "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
+                "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
           });
         }
       }
@@ -273,13 +283,12 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     }
 
     await _uploadCheckout(
-      imageFile: selfieImage!,
-      lat: _currentPosition!.latitude,
-      lng: _currentPosition!.longitude,
-      dt: "", 
-      isRetry: false,
-      sendToAdminQueue: false
-    );
+        imageFile: selfieImage!,
+        lat: _currentPosition!.latitude,
+        lng: _currentPosition!.longitude,
+        dt: "",
+        isRetry: false,
+        sendToAdminQueue: false);
   }
 
   Future<void> _uploadCheckout({
@@ -295,16 +304,25 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
+      final role = prefs.getString('role');
 
-      String endpoint = sendToAdminQueue 
-          ? "$_apiUrl/api/v1/attendance/checkout-pending" 
-          : "$_apiUrl/api/v1/attendance/checkout";
+      String endpoint;
+      if (role == 'worker') {
+        endpoint = sendToAdminQueue
+            ? "$_apiUrl/api/v1/attendance/checkout-pending"
+            : "$_apiUrl/api/v1/attendance/checkout";
+      } else {
+        endpoint = sendToAdminQueue
+            ? "$_apiUrl/api/v1/supervisor/checkout-pending"
+            : "$_apiUrl/api/v1/supervisor/checkout";
+      }
 
       var request = http.MultipartRequest('POST', Uri.parse(endpoint));
 
       request.headers['Authorization'] = 'Bearer $token';
       request.fields['location'] = "$lat,$lng";
-      request.fields['dateTime'] = isRetry ? dt : DateTime.now().toIso8601String();
+      request.fields['dateTime'] =
+          isRetry ? dt : DateTime.now().toIso8601String();
 
       request.files.add(
         await http.MultipartFile.fromPath(
@@ -316,23 +334,22 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         _retryTimer?.cancel();
         await prefs.remove('pending_checkout');
-        
+
         setState(() {
           _isPendingMode = false;
           _isRetrying = false;
         });
 
-        String msg = sendToAdminQueue 
-            ? "Sent to Admin for Approval (Network Delay)" 
+        String msg = sendToAdminQueue
+            ? "Sent to Admin for Approval (Network Delay)"
             : "Checked Out Successfully!";
 
         _showSuccess(msg);
         if (mounted) Navigator.pop(context);
-        
       } else {
         _retryTimer?.cancel();
         final responseData = jsonDecode(response.body);
@@ -350,8 +367,8 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
   }
 
   void _startOneMinuteTimer() {
-    _savePending(needsAdminApproval: false); 
-    
+    _savePending(needsAdminApproval: false);
+
     setState(() {
       _isRetrying = true;
       _retrySeconds = 0;
@@ -359,20 +376,20 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
 
     _retryTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
-      
+
       setState(() {
         _retrySeconds++;
       });
 
       if (_retrySeconds % 5 == 0) {
-        _checkConnectivityAndSync(); 
+        _checkConnectivityAndSync();
       }
 
       if (_retrySeconds >= 60) {
         timer.cancel();
         setState(() => _isRetrying = false);
         _savePending(needsAdminApproval: true);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text("Network timeout. Request saved for Admin Approval."),
           backgroundColor: Colors.orange,
@@ -382,41 +399,41 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     });
   }
 
-  
-Future<void> _savePending({required bool needsAdminApproval}) async {
-  if (selfieImage == null) return;
+  Future<void> _savePending({required bool needsAdminApproval}) async {
+    if (selfieImage == null) return;
 
-  // ✅ FIX: Move file from Cache to Permanent Storage
-  final directory = await getApplicationDocumentsDirectory();
-  final String fileName = 'checkout_${DateTime.now().millisecondsSinceEpoch}.jpg';
-  final String newPath = path.join(directory.path, fileName);
-  
-  final File newImage = await selfieImage!.copy(newPath);
+    // ✅ FIX: Move file from Cache to Permanent Storage
+    final directory = await getApplicationDocumentsDirectory();
+    final String fileName =
+        'checkout_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final String newPath = path.join(directory.path, fileName);
 
-  final prefs = await SharedPreferences.getInstance();
-  final data = {
-    "imagePath": newImage.path, // ✅ Save the PERMANENT path
-    "lat": _currentPosition!.latitude,
-    "lng": _currentPosition!.longitude,
-    "dateTime": DateTime.now().toIso8601String(),
-    "displayTime": dateTime,
-    "location": location,
-    "coordsText": coordsText,
-    "userName": _userName,
-    "needsAdminApproval": needsAdminApproval, 
-  };
+    final File newImage = await selfieImage!.copy(newPath);
 
-  await prefs.setString('pending_checkout', jsonEncode(data));
+    final prefs = await SharedPreferences.getInstance();
+    final data = {
+      "imagePath": newImage.path, // ✅ Save the PERMANENT path
+      "lat": _currentPosition!.latitude,
+      "lng": _currentPosition!.longitude,
+      "dateTime": DateTime.now().toIso8601String(),
+      "displayTime": dateTime,
+      "location": location,
+      "coordsText": coordsText,
+      "userName": _userName,
+      "needsAdminApproval": needsAdminApproval,
+    };
 
-  setState(() {
-    _isPendingMode = true;
-    selfieImage = newImage;
-  });
-  
-  if (!needsAdminApproval && _retrySeconds == 0) {
-     _showError("No Internet. Retrying for 1 minute...");
+    await prefs.setString('pending_checkout', jsonEncode(data));
+
+    setState(() {
+      _isPendingMode = true;
+      selfieImage = newImage;
+    });
+
+    if (!needsAdminApproval && _retrySeconds == 0) {
+      _showError("No Internet. Retrying for 1 minute...");
+    }
   }
-}
 
   void _showError(String message) {
     if (!mounted) return;
@@ -487,11 +504,13 @@ Future<void> _savePending({required bool needsAdminApproval}) async {
 
             // 🔹 Show Retry Progress
             if (_isRetrying) ...[
-               const SizedBox(height: 20),
-               Text("Retrying connection... (${60 - _retrySeconds}s left)", 
-                 style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-               const SizedBox(height: 5),
-               LinearProgressIndicator(value: _retrySeconds / 60, color: Colors.orange),
+              const SizedBox(height: 20),
+              Text("Retrying connection... (${60 - _retrySeconds}s left)",
+                  style: const TextStyle(
+                      color: Colors.orange, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 5),
+              LinearProgressIndicator(
+                  value: _retrySeconds / 60, color: Colors.orange),
             ],
 
             const SizedBox(height: 20),
@@ -532,30 +551,30 @@ Future<void> _savePending({required bool needsAdminApproval}) async {
                 onPressed: _isLoading || _isRetrying
                     ? null
                     : (_isPendingMode
-                    ? _attemptSync
-                    : (hasImage ? confirmCheckout : openCamera)),
+                        ? _attemptSync
+                        : (hasImage ? confirmCheckout : openCamera)),
                 icon: _isLoading
                     ? Container()
                     : Icon(
-                  _isPendingMode
-                      ? Icons.hourglass_bottom
-                      : (hasImage ? Icons.check : Icons.camera_alt),
-                  size: 22,
-                ),
+                        _isPendingMode
+                            ? Icons.hourglass_bottom
+                            : (hasImage ? Icons.check : Icons.camera_alt),
+                        size: 22,
+                      ),
                 label: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                  _isPendingMode
-                      ? "Pending (Tap to Sync)"
-                      : (hasImage ? "Confirm Clock-Out" : "Take Photo"),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                        _isPendingMode
+                            ? "Pending (Tap to Sync)"
+                            : (hasImage ? "Confirm Clock-Out" : "Take Photo"),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor:
-                  _isPendingMode ? Colors.orange.shade700 : themeBlue,
+                      _isPendingMode ? Colors.orange.shade700 : themeBlue,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(50),
