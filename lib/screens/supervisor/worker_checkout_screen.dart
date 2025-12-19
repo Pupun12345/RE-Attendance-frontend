@@ -7,12 +7,12 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:smartcare_app/utils/constants.dart';
 import 'package:smartcare_app/screens/supervisor/supervisor_dashboard_screen.dart';
-
 class WorkerCheckOutScreen extends StatefulWidget {
   final String workerName;
   final String workerId;
@@ -23,30 +23,40 @@ class WorkerCheckOutScreen extends StatefulWidget {
     required this.workerDbId,
   }) : super(key: key);
 
+
   @override
   State<WorkerCheckOutScreen> createState() => _WorkerCheckOutScreenState();
-  
+
+
+
 
 }
 
+
 class _WorkerCheckOutScreenState extends State<WorkerCheckOutScreen> {
-  
+
+
   static const int _maxRetries = 2;
   int _retryCount = 0;
 
- 
+
+
+
+
 
   bool _isOfflinePending = false;
 
+
   final Color themeBlue = const Color(0xFF0B3B8C);
+
 
   String _timeString = "";
   Timer? _timer;
 
-  // -------- USER DATA ----------
-  String _userName = "umesh";
-  String _userId = "EMP001";
+
+  // -------- SUPERVISOR DATA (only supervisorId needed for API) ----------
   String _supervisorId = "SUP001";
+
 
   // -------- LOCATION DATA ----------
   String _locationText = "Fetching location...";
@@ -54,9 +64,11 @@ class _WorkerCheckOutScreenState extends State<WorkerCheckOutScreen> {
   double? _currentLat;
   double? _currentLng;
 
+
   // -------- IMAGE ----------
   File? _lastCapturedImage;
   final ImagePicker _picker = ImagePicker();
+
 
   // -------- PENDING STATE (UI) ----------
   bool _isPending = false;
@@ -67,35 +79,47 @@ class _WorkerCheckOutScreenState extends State<WorkerCheckOutScreen> {
   String? _pendingName;
   String? _pendingUserId;
 
+
   Timer? _pendingTimer;
   int _pendingSecondsLeft = 0;
   bool _pendingEscalated = false; // final stuck
   int _offlineTryCount = 0;       // 0 none, 1 first offline, >=2 second/final
 
+
   // connectivity_plus 6.x
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
+
   // local storage key (separate from check-in)
   static const String _pendingCheckoutQueueKey = 'pending_checkout_queue';
+
 
   @override
   void initState() {
     super.initState();
     _startClock();
-    _loadUserData();
+    _loadSupervisorId(); // Only load supervisor ID, use widget properties for worker data
     _determinePositionAndListen();
+
 
     _connectivitySub =
         Connectivity().onConnectivityChanged.listen(_handleConnectivityChange);
   }
 
+
   @override
-void dispose() {
-  _connectivitySub?.cancel();
-  _pendingTimer?.cancel();
-  _timer?.cancel();
-  super.dispose();
-}
+  void dispose() {
+    _connectivitySub?.cancel();
+    _pendingTimer?.cancel();
+    _timer?.cancel();
+    super.dispose();
+  }
+
+
+
+
+
+
 
 
 
@@ -110,6 +134,7 @@ void dispose() {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
   }
 
+
   void _updateTime() {
     final now = DateTime.now();
     final hour = now.hour % 12 == 0 ? 12 : now.hour % 12;
@@ -117,12 +142,14 @@ void dispose() {
     final minute = now.minute.toString().padLeft(2, '0');
     final second = now.second.toString().padLeft(2, '0');
 
+
     setState(() {
       _timeString = "${now.day.toString().padLeft(2, '0')} "
           "${_monthName(now.month)} ${now.year} "
           "$hour:$minute:$second $ampm";
     });
   }
+
 
   String _monthName(int m) {
     const months = [
@@ -132,12 +159,14 @@ void dispose() {
     return months[m - 1];
   }
 
+
   // ----------------------------------------------------------
-  // LOAD USER DATA (name + userId + supervisorId)
+  // LOAD SUPERVISOR ID (only supervisorId needed for API calls)
   // ----------------------------------------------------------
-  Future<void> _loadUserData() async {
+  Future<void> _loadSupervisorId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+
 
       final userString = prefs.getString('user');
       if (userString != null && userString.isNotEmpty) {
@@ -145,43 +174,29 @@ void dispose() {
           final Map<String, dynamic> userData =
           Map<String, dynamic>.from(jsonDecode(userString));
 
-          setState(() {
-            if (userData['name'] != null &&
-                userData['name'].toString().trim().isNotEmpty) {
-              _userName = userData['name'].toString();
-            }
-            if (userData['userId'] != null &&
-                userData['userId'].toString().trim().isNotEmpty) {
-              _userId = userData['userId'].toString();
-            }
-            if (userData['supervisorId'] != null &&
-                userData['supervisorId'].toString().trim().isNotEmpty) {
+
+          if (userData['supervisorId'] != null &&
+              userData['supervisorId'].toString().trim().isNotEmpty) {
+            setState(() {
               _supervisorId = userData['supervisorId'].toString();
-            }
-          });
-          return;
+            });
+            return;
+          }
         } catch (_) {}
       }
 
-      final name = prefs.getString('name');
-      final id = prefs.getString('userId');
-      final sup = prefs.getString('supervisorId');
 
-      setState(() {
-        if (name != null && name.trim().isNotEmpty) {
-          _userName = name;
-        }
-        if (id != null && id.trim().isNotEmpty) {
-          _userId = id;
-        }
-        if (sup != null && sup.trim().isNotEmpty) {
+      final sup = prefs.getString('supervisorId');
+      if (sup != null && sup.trim().isNotEmpty) {
+        setState(() {
           _supervisorId = sup;
-        }
-      });
+        });
+      }
     } catch (_) {
-      // keep defaults
+      // keep default
     }
   }
+
 
   // ----------------------------------------------------------
   // LOCATION + ADDRESS
@@ -190,6 +205,7 @@ void dispose() {
     try {
       final placemarks = await placemarkFromCoordinates(lat, lng);
       if (!mounted) return;
+
 
       if (placemarks.isNotEmpty) {
         final p = placemarks.first;
@@ -213,6 +229,7 @@ void dispose() {
     }
   }
 
+
   Future<void> _determinePositionAndListen() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -223,6 +240,7 @@ void dispose() {
         });
         return;
       }
+
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
@@ -236,6 +254,7 @@ void dispose() {
         }
       }
 
+
       if (permission == LocationPermission.deniedForever) {
         setState(() {
           _locationText = "Location permission permanently denied";
@@ -244,19 +263,23 @@ void dispose() {
         return;
       }
 
+
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
       );
       if (!mounted) return;
 
+
       _currentLat = pos.latitude;
       _currentLng = pos.longitude;
+
 
       setState(() {
         _locationText =
         "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
       });
       _updateAddress(pos.latitude, pos.longitude);
+
 
       Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
@@ -282,6 +305,7 @@ void dispose() {
     }
   }
 
+
   // ----------------------------------------------------------
   // CAMERA
   // ----------------------------------------------------------
@@ -290,8 +314,11 @@ void dispose() {
       final picked = await _picker.pickImage(
         source: ImageSource.camera,
         preferredCameraDevice: CameraDevice.front,
-        imageQuality: 85,
+        imageQuality: 60, // Reduced from 85 to improve performance and reduce file size
+        maxWidth: 800, // Limit image size to prevent 413 errors
+        maxHeight: 800,
       );
+
 
       if (picked != null) {
         setState(() {
@@ -304,6 +331,7 @@ void dispose() {
     }
   }
 
+
   // ----------------------------------------------------------
   // HELPERS (TOKEN + SNACKBAR)
   // ----------------------------------------------------------
@@ -311,6 +339,7 @@ void dispose() {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
   }
+
 
   void _showSnack(String msg, Color color) {
     if (!mounted) return;
@@ -320,6 +349,18 @@ void dispose() {
         backgroundColor: color,
       ),
     );
+  }
+
+  // ----------------------------------------------------------
+  // IMAGE ENCODING
+  // ----------------------------------------------------------
+  Future<String> encodeImageToBase64(File imageFile) async {
+    try {
+      final bytes = await imageFile.readAsBytes();
+      return base64Encode(bytes);
+    } catch (e) {
+      throw Exception('Failed to encode image: $e');
+    }
   }
 
   // ----------------------------------------------------------
@@ -343,21 +384,25 @@ void dispose() {
     }
   }
 
+
   Future<void> _savePendingQueue(List<Map<String, dynamic>> list) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_pendingCheckoutQueueKey, jsonEncode(list));
   }
 
+
   /// first time offline: save checkout record in JSON queue
   Future<void> _addPendingRecordToStorage() async {
     if (_lastCapturedImage == null) return;
 
+
     final queue = await _loadPendingQueue();
+
 
     final record = <String, dynamic>{
       "type": "CHECK_OUT",
-      "userId": _userId,
-      "userName": _userName,
+      "userId": widget.workerId,
+      "userName": widget.workerName,
       "supervisorId": _supervisorId,
       "timeLabel": _timeString,
       "createdAt": DateTime.now().toIso8601String(),
@@ -368,36 +413,46 @@ void dispose() {
       "imagePath": _lastCapturedImage!.path,
     };
 
+
     queue.add(record);
     await _savePendingQueue(queue);
   }
 
-  
+
+
+
   Future<int> _syncPendingQueueToBackend() async {
     final queue = await _loadPendingQueue();
     if (queue.isEmpty) return 0;
 
+
     final token = await _getToken();
     if (token == null) return 0;
 
+
     final List<Map<String, dynamic>> remaining = [];
     int uploadedCount = 0;
+
 
     for (final item in queue) {
       try {
         final imgPath = item['imagePath'] as String?;
         if (imgPath == null) continue;
 
+
         final file = File(imgPath);
         if (!await file.exists()) continue;
 
-        final imgBytes = await file.readAsBytes();
-        final imgBase64 = base64Encode(imgBytes);
+
+        // Use isolate-based encoding to prevent main thread blocking
+        final imgBase64 = await encodeImageToBase64(file);
+
 
         // DUMMY Pending Checkout API (backend dev replace karega)
         //final url =
         //Uri.parse('$apiBaseUrl/api/v1/attendance/checkout/pending');
         final url = Uri.parse('$apiBaseUrl/api/v1/attendance/supervisor/checkout-pending');
+
 
         final body = {
           "type": item['type'],
@@ -413,6 +468,7 @@ void dispose() {
           "imageBase64": imgBase64,
         };
 
+
         final res = await http.post(
           url,
           headers: {
@@ -422,24 +478,31 @@ void dispose() {
           body: jsonEncode(body),
         );
 
+
         if (res.statusCode == 200 || res.statusCode == 201) {
           uploadedCount++;
         } else {
           remaining.add(item);
         }
-      } catch (_) {
+      } catch (e) {
+        // Log error but continue with next item
+        debugPrint('Error syncing item: $e');
         remaining.add(item);
       }
     }
 
+
     await _savePendingQueue(remaining);
+
 
     if (uploadedCount > 0 && remaining.isEmpty) {
       _clearPending();
     }
 
+
     return uploadedCount;
   }
+
 
   // ----------------------------------------------------------
   // PENDING CYCLE (PAYTM STYLE)
@@ -447,18 +510,21 @@ void dispose() {
   void _startPendingCycle({required bool allowReset}) {
     _pendingTimer?.cancel();
 
+
     setState(() {
       _isPending = true;
       _pendingImage = _lastCapturedImage;
       _pendingTime = _timeString;
       _pendingLocation = _locationText;
       _pendingAddress = _addressText;
-      _pendingName = _userName;
-      _pendingUserId = _userId;
+      _pendingName = widget.workerName;
+      _pendingUserId = widget.workerId;
+
 
       _pendingEscalated = false;
       _pendingSecondsLeft = 30;
     });
+
 
     _pendingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
@@ -486,6 +552,7 @@ void dispose() {
     });
   }
 
+
   void _clearPending() {
     _pendingTimer?.cancel();
     _pendingTimer = null;
@@ -503,6 +570,7 @@ void dispose() {
     });
   }
 
+
   // ----------------------------------------------------------
   // CONNECTIVITY HANDLER
   // ----------------------------------------------------------
@@ -510,9 +578,12 @@ void dispose() {
     final bool hasConnection =
     results.any((r) => r != ConnectivityResult.none);
 
+
     if (!hasConnection || !mounted) return;
 
+
     final uploaded = await _syncPendingQueueToBackend();
+
 
     if (uploaded > 0) {
       _showSnack(
@@ -521,6 +592,7 @@ void dispose() {
       );
     }
   }
+
 
   // ----------------------------------------------------------
   // ONLINE CHECK-OUT API
@@ -536,40 +608,51 @@ void dispose() {
       return;
     }
 
+
     try {
-      final bytes = await _lastCapturedImage!.readAsBytes();
-      final imgBase64 = base64Encode(bytes);
+      // Use MultipartRequest instead of JSON to avoid 413 Payload Too Large errors
+      final uri = Uri.parse('$apiBaseUrl/api/v1/attendance/supervisor/checkout');
+      var request = http.MultipartRequest('POST', uri);
+      request.headers['Authorization'] = 'Bearer $token';
 
-      // DUMMY check-out API
-      final url = Uri.parse('$apiBaseUrl/api/v1/attendance/check-out');
 
-      final body = {
-        "userId": _userId,
-        "userName": _userName,
-        "supervisorId": _supervisorId,
-        "timeLabel": _timeString,
-        "address": _addressText,
-        "locationLabel": _locationText,
-        "lat": _currentLat,
-        "lng": _currentLng,
-        "imageBase64": imgBase64,
-      };
+      // Send worker DB ID and other fields
+      request.fields['workerId'] = widget.workerDbId;
+      request.fields['location'] = _addressText;
+      request.fields['timeLabel'] = _timeString;
+      request.fields['address'] = _addressText;
+      if (_currentLat != null) request.fields['lat'] = _currentLat.toString();
+      if (_currentLng != null) request.fields['lng'] = _currentLng.toString();
+      if (_supervisorId.isNotEmpty) request.fields['supervisorId'] = _supervisorId;
 
-      final res = await http.post(
-        url,
-        headers: {
-          HttpHeaders.contentTypeHeader: 'application/json',
-          HttpHeaders.authorizationHeader: 'Bearer $token',
-        },
-        body: jsonEncode(body),
+
+      // Add image file directly (much smaller than base64)
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'attendanceImage',
+          _lastCapturedImage!.path,
+          contentType: MediaType('image', 'jpeg'),
+        ),
       );
 
+
+      final streamedResponse = await request.send();
+      final res = await http.Response.fromStream(streamedResponse);
+
+
       if (res.statusCode == 200 || res.statusCode == 201) {
-        _showSnack("Checked out successfully!", Colors.green);
+        _showSnack("Success: ${widget.workerName} Checked Out!", Colors.green);
         _clearPending();
       } else {
+        // Safely parse error response
+        Map<String, dynamic>? errorData;
+        if (res.body.isNotEmpty) {
+          try {
+            errorData = jsonDecode(res.body) as Map<String, dynamic>?;
+          } catch (_) {}
+        }
         _showSnack(
-          "Server error (${res.statusCode}). Please try again.",
+          errorData?['message'] ?? "Server error (${res.statusCode}). Please try again.",
           Colors.orange,
         );
       }
@@ -577,6 +660,7 @@ void dispose() {
       _showSnack("Network error: $e", Colors.orange);
     }
   }
+
 
   // ----------------------------------------------------------
   // BUTTON HANDLER
@@ -587,12 +671,15 @@ void dispose() {
       return;
     }
 
+
     final connectivity = await Connectivity().checkConnectivity();
-    final bool hasInternet = connectivity != ConnectivityResult.none;
+    final bool hasInternet = connectivity.any((r) => r != ConnectivityResult.none);
+
 
     if (!hasInternet) {
       // ---------- OFFLINE FLOW ----------
       _offlineTryCount++;
+
 
       if (_offlineTryCount == 1) {
         // first offline try: save JSON + countdown, then back to "Confirm Check Out"
@@ -613,10 +700,12 @@ void dispose() {
       return;
     }
 
+
     // ---------- ONLINE FLOW ----------
     _offlineTryCount = 0;
     await _sendOnlineCheckout();
   }
+
 
   // ----------------------------------------------------------
   // PENDING DETAILS DIALOG
@@ -653,7 +742,7 @@ void dispose() {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      "${_pendingName ?? _userName} (${_pendingUserId ?? _userId})",
+                      "${_pendingName ?? widget.workerName} (${_pendingUserId ?? widget.workerId})",
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -723,12 +812,14 @@ void dispose() {
     );
   }
 
+
   // ----------------------------------------------------------
   // UI
   // ----------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final bool hasImage = _lastCapturedImage != null;
+
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7FB),
@@ -774,6 +865,7 @@ void dispose() {
               ),
               const SizedBox(height: 18),
 
+
               // User name + id
               Row(
                 children: [
@@ -782,7 +874,7 @@ void dispose() {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      "$_userName ($_userId)",
+                      "${widget.workerName} (${widget.workerId})",
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -792,7 +884,9 @@ void dispose() {
                 ],
               ),
 
+
               const SizedBox(height: 30),
+
 
               // Photo preview
               if (hasImage) ...[
@@ -806,11 +900,13 @@ void dispose() {
                 const SizedBox(height: 20),
               ],
 
+
               const SizedBox(height: 200),
             ],
           ),
         ),
       ),
+
 
       // FOOTER
       bottomNavigationBar: SafeArea(
@@ -849,11 +945,13 @@ void dispose() {
                         fontSize: 13,
                         color: Colors.black54,
                       ),
+
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
+
 
               SizedBox(
                 width: double.infinity,

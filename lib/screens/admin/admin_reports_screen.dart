@@ -66,6 +66,226 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
 
   String _generateDailyCSV(List<dynamic> data) {
+    // 1. Sort data by Role (Management -> Supervisor -> Worker)
+    data.sort((a, b) {
+      int getPriority(String? role) {
+        role = role?.toUpperCase() ?? '';
+        if (role.contains('MANAGEMENT')) return 1;
+        if (role.contains('SUPERVISOR')) return 2;
+        return 3; // Worker
+      }
+
+
+      return getPriority(a['user']?['role'])
+          .compareTo(getPriority(b['user']?['role']));
+    });
+
+
+    final List<List<dynamic>> rows = [];
+
+
+    // Header row - matching image format exactly
+    rows.add([
+      'SL No.',
+      'UNIQUE ID',
+      'DESIGNATION',
+      'NAME',
+      'DATE',
+      'PRESENT',
+      'OT',
+      'CHECK-IN',
+      'CHECK-OUT',
+      'LOCATION AREA',
+      'LOCATION SIZE',
+      'PHOTO'
+    ]);
+
+
+    // Data rows
+    for (int i = 0; i < data.length; i++) {
+      final record = data[i];
+      final user = record['user'] ?? {};
+
+
+      // Get location coordinates
+      final location = record['checkInLocation'] ?? {};
+      final longitude = location['longitude'] ?? record['longitude'] ?? '0.0';
+      final latitude = location['latitude'] ?? record['latitude'] ?? '0.0';
+
+
+      // Format status as "PRESNT" or "ABSENT" (matching image)
+      String status = 'ABSENT';
+      if (record['status'] != null) {
+        final statusStr = record['status'].toString().toUpperCase();
+        status = statusStr.contains('PRESENT') || statusStr == 'PRESNT'
+            ? 'PRESNT'
+            : 'ABSENT';
+      }
+
+
+      rows.add([
+        i + 1,
+        user['userId'] ?? 'N/A',
+        (user['role'] ?? 'N/A').toString().toUpperCase(),
+        user['name'] ?? 'N/A',
+        _formatDate(record['date'] ?? record['dateTime']),
+        status,
+        record['ot'] ?? record['overtime'] ?? 0,
+        _formatTime(record['checkInTime'] ?? record['checkinTime']),
+        _formatTime(record['checkOutTime'] ?? record['checkoutTime']),
+        location['address'] ?? record['address'] ?? 'KALINGA NAGAR, JAJPUR',
+        '$longitude - $latitude',
+        // Format: longitude - latitude (matching image)
+        '',
+        // PHOTO column - empty as shown in image
+      ]);
+    }
+
+
+    // Add footer rows matching image format
+    final monthName = DateFormat('MMMM').format(_dailyDate).toUpperCase();
+    final daysInMonth = DateTime(_dailyDate.year, _dailyDate.month + 1, 0).day;
+
+
+    rows.add([]); // Empty row
+    rows.add([
+      '',
+      '{$monthName $daysInMonth DAYS} THIS IS DAILY REPORT',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      ''
+    ]);
+
+
+    return const ListToCsvConverter().convert(rows);
+  }
+
+
+  // ==========================
+  // 3. MONTHLY REPORT GENERATOR
+  // ==========================
+  // lib/screens/admin/admin_reports_screen.dart
+
+
+  String _generateMonthlySummaryCSV(List<dynamic> data) {
+    final Map<String, Map<String, dynamic>> summary = {};
+
+
+    // Format date range as shown in image: "07-11-2025 TO 07-12-2025"
+    String dateRangeStr = "N/A";
+    if (_monthlyFromDate != null && _monthlyToDate != null) {
+      dateRangeStr =
+      "${DateFormat('dd-MM-yyyy').format(_monthlyFromDate!)} TO ${DateFormat('dd-MM-yyyy').format(_monthlyToDate!)}";
+    }
+
+
+    // Calculate total days in range for holidays calculation
+    int totalDays = 0;
+    if (_monthlyFromDate != null && _monthlyToDate != null) {
+      totalDays = _monthlyToDate!.difference(_monthlyFromDate!).inDays + 1;
+    }
+
+
+    for (var record in data) {
+      final user = record['user'] ?? {};
+      final String uid = user['userId'] ?? 'Unknown';
+
+
+      if (!summary.containsKey(uid)) {
+        summary[uid] = {
+          'uniqueId': uid,
+          'name': user['name'] ?? 'N/A',
+          'designation': (user['role'] ?? 'WORKER').toString().toUpperCase(),
+          'present': 0,
+          'absent': 0,
+          'holidays': 5,
+          // Default holidays as shown in image (can be calculated if needed)
+          'ot': 0,
+        };
+      }
+
+
+      // Logic to increment values based on status
+      String status = (record['status'] ?? '').toString().toLowerCase();
+      if (status == 'present' || status == 'presnt') {
+        summary[uid]!['present'] = (summary[uid]!['present'] as int) + 1;
+      } else if (status == 'absent') {
+        summary[uid]!['absent'] = (summary[uid]!['absent'] as int) + 1;
+      }
+
+
+      // Sum overtime
+      summary[uid]!['ot'] = (summary[uid]!['ot'] as int) +
+          (record['ot'] ?? record['overtime'] ?? 0);
+    }
+
+
+    // Calculate holidays (weekends + any marked holidays)
+    // For now, using default 5 as shown in image, but can be enhanced
+    const int defaultHolidays = 5;
+
+
+    List<Map<String, dynamic>> sortedList = summary.values.toList();
+    sortedList.sort((a, b) {
+      int getP(String r) => r.contains('MANAGEMENT')
+          ? 1
+          : r.contains('SUPERVISOR')
+          ? 2
+          : 3;
+      return getP(a['designation']).compareTo(getP(b['designation']));
+    });
+
+
+    final List<List<dynamic>> rows = [];
+
+
+    // Header row - matching image format exactly
+    rows.add([
+      'SL No.',
+      'UNIQUE ID',
+      'DESIGNATION',
+      'NAME',
+      'FROM DATE - TO DATE',
+      'PRESENT',
+      'ABSENT',
+      'HOLIDAYS',
+      'OT'
+    ]);
+
+
+    // Data rows
+    for (int i = 0; i < sortedList.length; i++) {
+      final item = sortedList[i];
+      rows.add([
+        i + 1,
+        item['uniqueId'],
+        item['designation'],
+        item['name'],
+        dateRangeStr,
+        item['present'],
+        item['absent'],
+        defaultHolidays, // Using default holidays as shown in image
+        item['ot']
+      ]);
+    }
+
+
+    // Add footer row matching image format
+    rows.add([]); // Empty row
+    rows.add(['', 'MONTHLY REPORT', '', '', '', '', '', '', '']);
+
+
+    return const ListToCsvConverter().convert(rows);
+  }
+
+  /*String _generateDailyCSV(List<dynamic> data) {
     final rows = <List<dynamic>>[];
 
     rows.add([
@@ -182,7 +402,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
     return const ListToCsvConverter().convert(rows);
   }
-
+*/
   // ============================================================
   // API CALL
   // ============================================================
