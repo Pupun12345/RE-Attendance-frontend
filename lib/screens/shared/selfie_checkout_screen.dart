@@ -306,16 +306,9 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
       final token = prefs.getString('token');
       final role = prefs.getString('role');
 
-      String endpoint;
-      if (role == 'worker') {
-        endpoint = sendToAdminQueue
+      String endpoint= sendToAdminQueue
             ? "$_apiUrl/api/v1/attendance/checkout-pending"
             : "$_apiUrl/api/v1/attendance/checkout";
-      } else {
-        endpoint = sendToAdminQueue
-            ? "$_apiUrl/api/v1/supervisor/checkout-pending"
-            : "$_apiUrl/api/v1/supervisor/checkout";
-      }
 
       var request = http.MultipartRequest('POST', Uri.parse(endpoint));
 

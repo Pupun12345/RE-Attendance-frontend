@@ -67,6 +67,9 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
       '$apiBaseUrl/api/v1/reports/attendance/daily?startDate=${dateFormat.format(fiveDaysAgo)}&endDate=${dateFormat.format(now)}'
     );
 
+    print(token);
+    print(url);
+
     try {
       final response = await http.get(
         url,

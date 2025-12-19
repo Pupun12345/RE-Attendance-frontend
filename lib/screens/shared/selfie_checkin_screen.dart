@@ -202,16 +202,9 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("token");
       final role = prefs.getString("role");
-      String endpoint;
-      if (role == 'worker') {
-        endpoint = sendToAdminQueue
-            ? "$_apiUrl/api/v1/attendance/checkin-pending"
-            : "$_apiUrl/api/v1/attendance/checkin";
-      } else {
-        endpoint = sendToAdminQueue
-            ? "$_apiUrl/api/v1/attendance/supervisor/checkin-pending"
-            : "$_apiUrl/api/v1/attendance/supervisor/checkin";
-      }
+      String endpoint = sendToAdminQueue
+          ? "$_apiUrl/api/v1/attendance/checkin-pending"
+          : "$_apiUrl/api/v1/attendance/checkin";
 
       var request = http.MultipartRequest('POST', Uri.parse(endpoint));
       request.headers["Authorization"] = "Bearer $token";
