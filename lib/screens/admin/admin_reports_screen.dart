@@ -113,6 +113,29 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       final latitude = location['latitude'] ?? record['latitude'] ?? '0.0';
 
 
+      // Add header rows matching image format
+      final monthName = DateFormat('MMMM').format(_dailyDate).toUpperCase();
+      final daysInMonth = DateTime(_dailyDate.year, _dailyDate.month + 1, 0).day;
+
+
+      rows.add([]); // Empty row
+      rows.add([
+        '',
+        '{$monthName $daysInMonth DAYS} THIS IS DAILY REPORT',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        ''
+      ]);
+      rows.add([]); // Empty row
+
+
       // Format status as "PRESNT" or "ABSENT" (matching image)
       String status = 'ABSENT';
       if (record['status'] != null) {
@@ -142,26 +165,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     }
 
 
-    // Add footer rows matching image format
-    final monthName = DateFormat('MMMM').format(_dailyDate).toUpperCase();
-    final daysInMonth = DateTime(_dailyDate.year, _dailyDate.month + 1, 0).day;
 
-
-    rows.add([]); // Empty row
-    rows.add([
-      '',
-      '{$monthName $daysInMonth DAYS} THIS IS DAILY REPORT',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      ''
-    ]);
 
 
     return const ListToCsvConverter().convert(rows);
@@ -246,6 +250,11 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     final List<List<dynamic>> rows = [];
 
 
+    // Add header row matching image format
+    rows.add([]); // Empty row
+    rows.add(['', 'MONTHLY REPORT', '', '', '', '', '', '', '']);
+    rows.add([]); // Empty row
+
     // Header row - matching image format exactly
     rows.add([
       'SL No.',
@@ -277,9 +286,6 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     }
 
 
-    // Add footer row matching image format
-    rows.add([]); // Empty row
-    rows.add(['', 'MONTHLY REPORT', '', '', '', '', '', '', '']);
 
 
     return const ListToCsvConverter().convert(rows);
