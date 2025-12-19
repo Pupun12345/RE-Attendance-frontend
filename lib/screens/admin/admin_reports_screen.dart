@@ -133,7 +133,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         record['ot'] ?? record['overtime'] ?? 0,
         _formatTime(record['checkInTime'] ?? record['checkinTime']),
         _formatTime(record['checkOutTime'] ?? record['checkoutTime']),
-        location['address'] ?? record['address'] ?? 'KALINGA NAGAR, JAJPUR',
+        location['address'] ?? record['address'] ?? '',
         '$longitude - $latitude',
         // Format: longitude - latitude (matching image)
         '',
