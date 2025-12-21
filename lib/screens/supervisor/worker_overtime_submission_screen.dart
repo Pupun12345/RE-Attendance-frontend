@@ -6,10 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smartcare_app/utils/constants.dart';
 
-
-import 'package:smartcare_app/screens/supervisor/worker_checkin_screen.dart';
-import 'package:smartcare_app/screens/supervisor/worker_checkout_screen.dart';
-
 class WorkerOvertimeSubmissionScreen extends StatefulWidget {
   final String name;
   final String userId;
@@ -36,6 +32,7 @@ class _WorkerOvertimeSubmissionScreenState
 
   String _dateTimeText = "";
   Timer? _timer;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -53,7 +50,7 @@ class _WorkerOvertimeSubmissionScreenState
 
   void _startDateTimeTicker() {
     _updateDateTime();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _updateDateTime();
     });
   }
@@ -67,11 +64,72 @@ class _WorkerOvertimeSubmissionScreenState
     });
   }
 
+  // ---------------- SUBMIT OVERTIME ----------------
+  Future<void> _submitOvertime() async {
+    if (_hoursController.text.trim().isEmpty ||
+        _reasonController.text.trim().isEmpty) {
+      _showSnack("Please enter hours and reason");
+      return;
+    }
 
-  void _submitOvertime() async {
-    // backend untouched as requested
+    final double? hours = double.tryParse(_hoursController.text);
+    if (hours == null || hours <= 0) {
+      _showSnack("Enter valid overtime hours");
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final designation = prefs.getString('designation') ?? "Worker";
+
+      if (token == null) {
+        _showSnack("Authentication error. Login again.");
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/api/v1/overtime'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          "date": DateTime.now().toIso8601String(),
+          "hours": hours,
+          "reason": _reasonController.text.trim(),
+          "workerId": widget.dbId,
+          "designation": designation, // ✅ ADMIN KO DIKHNE KE LIYE
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 201 && data['success'] == true) {
+        _showSnack("Overtime submitted successfully", success: true);
+        Navigator.pop(context);
+      } else {
+        _showSnack(data['message'] ?? "Submission failed");
+      }
+    } catch (e) {
+      _showSnack("Something went wrong");
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
+  void _showSnack(String msg, {bool success = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: success ? Colors.green : Colors.redAccent,
+      ),
+    );
+  }
+
+  // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -93,40 +151,12 @@ class _WorkerOvertimeSubmissionScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // DATE & TIME
-            const Text("Date & Time",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            _buildInfoField(
-              icon: Icons.calendar_today_outlined,
-              text: _dateTimeText.isEmpty ? "Loading..." : _dateTimeText,
-            ),
+            _info("Date & Time", Icons.calendar_today_outlined, _dateTimeText),
+            _info("Worker Name", Icons.person_outline, widget.name),
+            _info("Worker ID", Icons.badge_outlined, widget.userId),
 
             const SizedBox(height: 18),
 
-            // WORKER NAME
-            const Text("Worker Name",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            _buildInfoField(
-              icon: Icons.person_outline,
-              text: widget.name,
-            ),
-
-            const SizedBox(height: 18),
-
-            // WORKER ID
-            const Text("Worker ID",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            _buildInfoField(
-              icon: Icons.badge_outlined,
-              text: widget.userId,
-            ),
-
-            const SizedBox(height: 18),
-
-            // HOURS
             const Text("Hours Worked",
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
@@ -144,7 +174,6 @@ class _WorkerOvertimeSubmissionScreenState
 
             const SizedBox(height: 18),
 
-            // REASON
             const Text("Reason",
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
@@ -162,67 +191,26 @@ class _WorkerOvertimeSubmissionScreenState
 
             const SizedBox(height: 28),
 
-
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => WorkerCheckInScreen(
-                              workerName: widget.name,
-                              workerId: widget.userId,
-                              workerDbId: widget.dbId,
-                            ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.login_outlined,
-                          color: Colors.white),
-                      label: const Text("Check-In",
-                          style: TextStyle(color: Colors.white)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeBlue,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30)),
-                      ),
-                    ),
-                  ),
+            // ✅ SUBMIT OVERTIME BUTTON
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isSubmitting ? null : _submitOvertime,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeBlue,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SizedBox(
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => WorkerCheckOutScreen(
-                              workerName: widget.name,
-                              workerId: widget.userId,
-                              workerDbId: widget.dbId,
-                            ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.logout_outlined,
-                          color: Colors.white),
-                      label: const Text("Check-Out",
-                          style: TextStyle(color: Colors.white)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeBlue,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30)),
-                      ),
-                    ),
-                  ),
+                child: _isSubmitting
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                  "Submit Overtime",
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600),
                 ),
-              ],
+              ),
             ),
           ],
         ),
@@ -230,25 +218,35 @@ class _WorkerOvertimeSubmissionScreenState
     );
   }
 
-  Widget _buildInfoField({required IconData icon, required String text}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: Colors.grey[700]),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(text,
-                style:
-                const TextStyle(fontSize: 15, color: Colors.black87)),
+  Widget _info(String label, IconData icon, String text) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 14, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade300),
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: Colors.grey[700]),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(text,
+                    style: const TextStyle(
+                        fontSize: 15, color: Colors.black87)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+      ],
     );
   }
 }
