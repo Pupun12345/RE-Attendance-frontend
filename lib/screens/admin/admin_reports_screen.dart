@@ -83,6 +83,27 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
     final List<List<dynamic>> rows = [];
 
+    // Add header label - only once per report (BEFORE the loop)
+    final monthName = DateFormat('MMMM').format(_dailyDate).toUpperCase();
+    final daysInMonth = DateTime(_dailyDate.year, _dailyDate.month + 1, 0).day;
+    final labelText = '{$monthName $daysInMonth DAYS} THIS IS DAILY REPORT';
+    
+    rows.add([]); // Empty row
+    rows.add([
+      '',
+      labelText,
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      ''
+    ]);
+    rows.add([]); // Empty row
 
     // Header row - matching image format exactly
     rows.add([
@@ -111,29 +132,6 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       final location = record['checkInLocation'] ?? {};
       final longitude = location['longitude'] ?? record['longitude'] ?? '0.0';
       final latitude = location['latitude'] ?? record['latitude'] ?? '0.0';
-
-
-      // Add header rows matching image format
-      final monthName = DateFormat('MMMM').format(_dailyDate).toUpperCase();
-      final daysInMonth = DateTime(_dailyDate.year, _dailyDate.month + 1, 0).day;
-
-
-      rows.add([]); // Empty row
-      rows.add([
-        '',
-        '{$monthName $daysInMonth DAYS} THIS IS DAILY REPORT',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        ''
-      ]);
-      rows.add([]); // Empty row
 
 
       // Format status as "PRESNT" or "ABSENT" (matching image)
@@ -179,9 +177,6 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
 
   String _generateMonthlySummaryCSV(List<dynamic> data) {
-    final Map<String, Map<String, dynamic>> summary = {};
-
-
     // Format date range as shown in image: "07-11-2025 TO 07-12-2025"
     String dateRangeStr = "N/A";
     if (_monthlyFromDate != null && _monthlyToDate != null) {
@@ -189,61 +184,36 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       "${DateFormat('dd-MM-yyyy').format(_monthlyFromDate!)} TO ${DateFormat('dd-MM-yyyy').format(_monthlyToDate!)}";
     }
 
-
-    // Calculate total days in range for holidays calculation
-    int totalDays = 0;
-    if (_monthlyFromDate != null && _monthlyToDate != null) {
-      totalDays = _monthlyToDate!.difference(_monthlyFromDate!).inDays + 1;
-    }
-
-
-    for (var record in data) {
-      final user = record['user'] ?? {};
-      final String uid = user['userId'] ?? 'Unknown';
-
-
-      if (!summary.containsKey(uid)) {
-        summary[uid] = {
-          'uniqueId': uid,
-          'name': user['name'] ?? 'N/A',
-          'designation': (user['role'] ?? 'WORKER').toString().toUpperCase(),
-          'present': 0,
-          'absent': 0,
-          'holidays': 5,
-          // Default holidays as shown in image (can be calculated if needed)
-          'ot': 0,
-        };
-      }
-
-
-      // Logic to increment values based on status
-      String status = (record['status'] ?? '').toString().toLowerCase();
-      if (status == 'present' || status == 'presnt') {
-        summary[uid]!['present'] = (summary[uid]!['present'] as int) + 1;
-      } else if (status == 'absent') {
-        summary[uid]!['absent'] = (summary[uid]!['absent'] as int) + 1;
-      }
-
-
-      // Sum overtime
-      summary[uid]!['ot'] = (summary[uid]!['ot'] as int) +
-          (record['ot'] ?? record['overtime'] ?? 0);
-    }
-
-
     // Calculate holidays (weekends + any marked holidays)
     // For now, using default 5 as shown in image, but can be enhanced
     const int defaultHolidays = 5;
 
+    // The backend already returns aggregated data with presentDays, absentDays, etc.
+    // So we can use the data directly without re-aggregating
+    List<Map<String, dynamic>> summaryList = [];
+    
+    for (var record in data) {
+      final user = record['user'] ?? {};
+      summaryList.add({
+        'uniqueId': user['userId'] ?? 'Unknown',
+        'name': user['name'] ?? 'N/A',
+        'designation': (user['role'] ?? 'WORKER').toString().toUpperCase(),
+        'present': record['presentDays'] ?? 0,
+        'absent': record['absentDays'] ?? 0,
+        'holidays': defaultHolidays,
+        'ot': record['ot'] ?? record['overtime'] ?? record['overtimeHours'] ?? 0,
+      });
+    }
 
-    List<Map<String, dynamic>> sortedList = summary.values.toList();
-    sortedList.sort((a, b) {
-      int getP(String r) => r.contains('MANAGEMENT')
-          ? 1
-          : r.contains('SUPERVISOR')
-          ? 2
-          : 3;
-      return getP(a['designation']).compareTo(getP(b['designation']));
+    // Sort by role priority (Management -> Supervisor -> Worker)
+    summaryList.sort((a, b) {
+      int getP(String r) {
+        final role = r.toString().toUpperCase();
+        if (role.contains('MANAGEMENT')) return 1;
+        if (role.contains('SUPERVISOR')) return 2;
+        return 3; // Worker
+      }
+      return getP(a['designation'] ?? '').compareTo(getP(b['designation'] ?? ''));
     });
 
 
@@ -270,8 +240,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
 
     // Data rows
-    for (int i = 0; i < sortedList.length; i++) {
-      final item = sortedList[i];
+    for (int i = 0; i < summaryList.length; i++) {
+      final item = summaryList[i];
       rows.add([
         i + 1,
         item['uniqueId'],
