@@ -1,4 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+
+import 'package:smartcare_app/utils/file_saver_mobile.dart'
+if (dart.library.html) 'package:smartcare_app/utils/file_saver_web.dart';
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,6 +38,25 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   Future<void> _saveCsvFile(String csvData, String fileName) async {
     try {
+      // ==========================
+      // 🌐 WEB
+      // ==========================
+      if (kIsWeb) {
+        saveCsvWeb(csvData, fileName);
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Report downloaded successfully"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        return;
+      }
+
+      // ==========================
+      // 📱 ANDROID / IOS
+      // ==========================
       final bytes = utf8.encode(csvData);
 
       const platform = MethodChannel('downloads_channel');
@@ -65,6 +89,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
 
+
+
   String _generateDailyCSV(List<dynamic> data) {
     // 1. Sort data by Role (Management -> Supervisor -> Worker)
     data.sort((a, b) {
@@ -83,15 +109,14 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
     final List<List<dynamic>> rows = [];
 
-    // Add header label - only once per report (BEFORE the loop)
     final monthName = DateFormat('MMMM').format(_dailyDate).toUpperCase();
     final daysInMonth = DateTime(_dailyDate.year, _dailyDate.month + 1, 0).day;
-    final labelText = '{$monthName $daysInMonth DAYS} THIS IS DAILY REPORT';
-    
+
+
     rows.add([]); // Empty row
     rows.add([
       '',
-      labelText,
+      '{$monthName $daysInMonth DAYS} THIS IS DAILY REPORT',
       '',
       '',
       '',
@@ -132,6 +157,10 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       final location = record['checkInLocation'] ?? {};
       final longitude = location['longitude'] ?? record['longitude'] ?? '0.0';
       final latitude = location['latitude'] ?? record['latitude'] ?? '0.0';
+
+
+      // Add header rows matching image format
+
 
 
       // Format status as "PRESNT" or "ABSENT" (matching image)
@@ -176,93 +205,43 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   // lib/screens/admin/admin_reports_screen.dart
 
 
-  String _generateMonthlySummaryCSV(List<dynamic> data) {
-    // Format date range as shown in image: "07-11-2025 TO 07-12-2025"
-    String dateRangeStr = "N/A";
+  String _generateMonthlyDetailedCSV(List<dynamic> data) {
+    // Sort by role priority
+    data.sort((a, b) {
+      int p(String? r) {
+        r = r?.toUpperCase() ?? '';
+        if (r.contains('MANAGEMENT')) return 1;
+        if (r.contains('SUPERVISOR')) return 2;
+        return 3;
+      }
+
+      return p(a['user']?['role']).compareTo(p(b['user']?['role']));
+    });
+
+    final rows = <List<dynamic>>[];
+
+    String range = '';
     if (_monthlyFromDate != null && _monthlyToDate != null) {
-      dateRangeStr =
+      range =
       "${DateFormat('dd-MM-yyyy').format(_monthlyFromDate!)} TO ${DateFormat('dd-MM-yyyy').format(_monthlyToDate!)}";
     }
 
-    // Calculate holidays (weekends + any marked holidays)
-    // For now, using default 5 as shown in image, but can be enhanced
-    const int defaultHolidays = 5;
-
-    // The backend already returns aggregated data with presentDays, absentDays, etc.
-    // So we can use the data directly without re-aggregating
-    List<Map<String, dynamic>> summaryList = [];
-    
-    for (var record in data) {
-      final user = record['user'] ?? {};
-      summaryList.add({
-        'uniqueId': user['userId'] ?? 'Unknown',
-        'name': user['name'] ?? 'N/A',
-        'designation': (user['role'] ?? 'WORKER').toString().toUpperCase(),
-        'present': record['presentDays'] ?? 0,
-        'absent': record['absentDays'] ?? 0,
-        'holidays': defaultHolidays,
-        'ot': record['ot'] ?? record['overtime'] ?? record['overtimeHours'] ?? 0,
-      });
-    }
-
-    // Sort by role priority (Management -> Supervisor -> Worker)
-    summaryList.sort((a, b) {
-      int getP(String r) {
-        final role = r.toString().toUpperCase();
-        if (role.contains('MANAGEMENT')) return 1;
-        if (role.contains('SUPERVISOR')) return 2;
-        return 3; // Worker
-      }
-      return getP(a['designation'] ?? '').compareTo(getP(b['designation'] ?? ''));
-    });
-
-
-    final List<List<dynamic>> rows = [];
-
-
-    // Add header row matching image format
-    rows.add([]); // Empty row
-    rows.add(['', 'MONTHLY REPORT', '', '', '', '', '', '', '']);
-    rows.add([]); // Empty row
-
-    // Header row - matching image format exactly
+    rows.add([]);
     rows.add([
-      'SL No.',
-      'UNIQUE ID',
-      'DESIGNATION',
-      'NAME',
-      'FROM DATE - TO DATE',
-      'PRESENT',
-      'ABSENT',
-      'HOLIDAYS',
-      'OT'
+      '',
+      'MONTHLY ATTENDANCE REPORT ($range)',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      ''
     ]);
-
-
-    // Data rows
-    for (int i = 0; i < summaryList.length; i++) {
-      final item = summaryList[i];
-      rows.add([
-        i + 1,
-        item['uniqueId'],
-        item['designation'],
-        item['name'],
-        dateRangeStr,
-        item['present'],
-        item['absent'],
-        defaultHolidays, // Using default holidays as shown in image
-        item['ot']
-      ]);
-    }
-
-
-
-
-    return const ListToCsvConverter().convert(rows);
-  }
-
-  /*String _generateDailyCSV(List<dynamic> data) {
-    final rows = <List<dynamic>>[];
+    rows.add([]);
 
     rows.add([
       'SL No.',
@@ -275,110 +254,80 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       'CHECK-IN',
       'CHECK-OUT',
       'LOCATION AREA',
-      'LOCATION SIZE'
+      'LOCATION SIZE',
+      'PHOTO'
     ]);
 
     for (int i = 0; i < data.length; i++) {
-      final r = data[i] ?? {};
+      final r = data[i];
       final u = r['user'] ?? {};
 
+      // -------- LOCATION FIX (ALL CASES) --------
+      final location =
+          r['checkInLocation'] ??
+              r['location'] ??
+              {};
+
+      final lat =
+          location['latitude'] ??
+              location['lat'] ??
+              r['latitude'] ??
+              '';
+
+      final lng =
+          location['longitude'] ??
+              location['lng'] ??
+              r['longitude'] ??
+              '';
+
+      final address =
+          location['address'] ??
+              r['address'] ??
+              '';
+
+      // -------- STATUS FIX --------
+      String status = 'ABSENT';
+      final rawStatus = r['status']?.toString().toUpperCase() ?? '';
+
+      if (
+      rawStatus == 'P' ||
+          rawStatus == 'PRESENT' ||
+          rawStatus == 'PRESNT' ||
+          r['isPresent'] == true
+      ) {
+        status = 'PRESNT';
+      }
+
+      // -------- TIME FIX (ALL KEYS) --------
+      final checkInTime =
+          r['checkInTime'] ??
+              r['checkinTime'] ??
+              r['check_in_time'];
+
+      final checkOutTime =
+          r['checkOutTime'] ??
+              r['checkoutTime'] ??
+              r['check_out_time'];
+
       rows.add([
         i + 1,
-        u['uniqueId'] ?? 'N/A',
-        u['designation'] ?? u['role'] ?? 'N/A',
+        u['userId'] ?? 'N/A',
+        (u['role'] ?? 'N/A').toString().toUpperCase(),
         u['name'] ?? 'N/A',
-        _formatDate(r['date']),
-        _getPresentStatus(r),
-        r['ot'] ?? 0,
-        _formatTime(r['checkInTime']),
-        _formatTime(r['checkOutTime']),
-        r['locationArea'] ?? 'N/A',
-        _formatLocation(r),
+        _formatDate(r['date'] ?? r['dateTime']),
+        status,
+        r['ot'] ?? r['overtime'] ?? 0,
+        _formatTime(checkInTime),
+        _formatTime(checkOutTime),
+        address,
+        '$lng - $lat',
+        ''
       ]);
     }
 
     return const ListToCsvConverter().convert(rows);
   }
 
-
-  String _generateMonthlySummaryCSV(List<dynamic> data) {
-    final Map<String, Map<String, dynamic>> summary = {};
-
-    for (final r in data) {
-      final u = r['user'];
-      if (u == null) continue;
-
-      final id = u['_id'] ?? u['uniqueId'];
-      if (id == null) continue;
-
-      summary.putIfAbsent(id, () => {
-        'uniqueId': u['uniqueId'] ?? 'N/A',
-        'designation':
-        (u['designation'] ?? u['role'] ?? 'WORKER')
-            .toString()
-            .toUpperCase(),
-        'name': u['name'] ?? 'N/A',
-        'present': 0,
-        'absent': 0,
-        'holidays': 0,
-        'ot': 0,
-      });
-
-      final status = (r['status'] ?? '').toString().toUpperCase();
-      if (status == 'PRESENT') summary[id]!['present']++;
-      else if (status == 'ABSENT') summary[id]!['absent']++;
-      else if (status == 'HOLIDAY') summary[id]!['holidays']++;
-
-      summary[id]!['ot'] += int.tryParse(r['ot']?.toString() ?? '0') ?? 0;
-    }
-
-    int rolePriority(String d) {
-      if (d.contains('MANAGEMENT')) return 1;
-      if (d.contains('SUPERVISOR')) return 2;
-      if (d.contains('WORKER')) return 3;
-      return 4;
-    }
-
-    final list = summary.values.toList()
-      ..sort((a, b) =>
-          rolePriority(a['designation'])
-              .compareTo(rolePriority(b['designation'])));
-
-    final rows = <List<dynamic>>[];
-    rows.add([
-      'SL No.',
-      'UNIQUE ID',
-      'DESIGNATION',
-      'NAME',
-      'FROM DATE - TO DATE',
-      'PRESENT',
-      'ABSENT',
-      'HOLIDAYS',
-      'OT'
-    ]);
-
-    final f = DateFormat('dd-MM-yyyy');
-    final range =
-        "${f.format(_monthlyFromDate!)} TO ${f.format(_monthlyToDate!)}";
-
-    for (int i = 0; i < list.length; i++) {
-      final r = list[i];
-      rows.add([
-        i + 1,
-        r['uniqueId'],
-        r['designation'],
-        r['name'],
-        range,
-        r['present'],
-        r['absent'],
-        r['holidays'],
-        r['ot'],
-      ]);
-    }
-
-    return const ListToCsvConverter().convert(rows);
-  }
-*/
   // ============================================================
   // API CALL
   // ============================================================
@@ -402,12 +351,12 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       }
 
       final data = jsonDecode(res.body)['data'] ?? [];
+      print("MONTHLY API SAMPLE => ${data.isNotEmpty ? data.first : 'EMPTY'}");//dedug
       if (data.isEmpty) return _showError("No data found");
 
       final csv = isMonthly
-          ? _generateMonthlySummaryCSV(data)
+          ? _generateMonthlyDetailedCSV(data)
           : _generateDailyCSV(data);
-
       final fileName =
           "${prefix}_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.csv";
 

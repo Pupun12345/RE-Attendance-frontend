@@ -36,11 +36,122 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
   String _userPhone = "1234567890";
   String? _profileImageUrl;
   bool _isLoadingProfile = true;
+  bool _allowCamera = false;
+  bool _allowLocation = false;
+  bool _allowContact = false;
+
 
   final Color themeBlue = const Color(0xFF0B3B8C);
   final TextEditingController _searchController = TextEditingController();
 
   late final List<Widget> _screens;
+
+  void _showUserAccessPopup() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStatePopup) {
+            final bool canContinue =
+                _allowCamera || _allowLocation || _allowContact;
+
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "User Data Access",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text(
+                      "To enable field tracking, please allow camera and location access during check-in and check-out.",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                      ),
+                    ),
+
+
+                    // ✅ Camera checkbox
+                    CheckboxListTile(
+                      value: _allowCamera,
+                      onChanged: (val) {
+                        setStatePopup(() {
+                          _allowCamera = val ?? false;
+                        });
+                      },
+                      title: const Text("Allow Camera"),
+                      secondary: const Icon(Icons.camera_alt),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+
+                    // ✅ Location checkbox
+                    CheckboxListTile(
+                      value: _allowLocation,
+                      onChanged: (val) {
+                        setStatePopup(() {
+                          _allowLocation = val ?? false;
+                        });
+                      },
+                      title: const Text("Allow Location"),
+                      secondary: const Icon(Icons.location_on),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+
+                    // ✅ Contact checkbox (NEW)
+                    CheckboxListTile(
+                      value: _allowContact,
+                      onChanged: (val) {
+                        setStatePopup(() {
+                          _allowContact = val ?? false;
+                        });
+                      },
+                      title: const Text("Allow Contacts"),
+                      secondary: const Icon(Icons.contacts),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton(
+                        onPressed: canContinue
+                            ? () => Navigator.pop(context)
+                            : null, // ❌ disabled until choose
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeBlue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                        ),
+                        child: const Text(
+                          "Allow",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
 
   @override
   void initState() {
@@ -48,7 +159,13 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
     _fetchLocation();
     _startStatusTimer();
     _loadUserData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showUserAccessPopup();
+    });
   }
+
+
+
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();

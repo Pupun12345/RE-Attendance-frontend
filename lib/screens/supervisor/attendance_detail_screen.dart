@@ -52,7 +52,7 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     final userString = prefs.getString('user');
-    
+
     if (token == null || userString == null) return;
 
     final user = jsonDecode(userString);
@@ -64,7 +64,7 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
     final dateFormat = DateFormat('yyyy-MM-dd');
 
     final url = Uri.parse(
-      '$apiBaseUrl/api/v1/reports/attendance/daily?startDate=${dateFormat.format(fiveDaysAgo)}&endDate=${dateFormat.format(now)}'
+        '$apiBaseUrl/api/v1/reports/attendance/daily?startDate=${dateFormat.format(fiveDaysAgo)}&endDate=${dateFormat.format(now)}'
     );
 
     print(token);
@@ -110,7 +110,7 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
   Future<void> _fetchEmployeeDailyStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
-    
+
     if (token == null) return;
 
     final url = Uri.parse('$apiBaseUrl/api/v1/attendance/status/today');
@@ -238,18 +238,18 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
               ),
               const SizedBox(height: 10),
 
-              _isLoading 
+              _isLoading
                   ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
                   : _selfAttendanceList.isEmpty
-                      ? _emptyBox("No self attendance records found")
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _selfAttendanceList.length,
-                          itemBuilder: (context, index) {
-                            return _selfAttendanceCard(_selfAttendanceList[index]);
-                          },
-                        ),
+                  ? _emptyBox("No self attendance records found")
+                  : ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _selfAttendanceList.length,
+                itemBuilder: (context, index) {
+                  return _selfAttendanceCard(_selfAttendanceList[index]);
+                },
+              ),
 
               const SizedBox(height: 24),
 
@@ -266,15 +266,15 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
               _isLoading
                   ? const SizedBox() // Loader already shown above
                   : _employeeList.isEmpty
-                      ? _emptyBox("No employee attendance data available")
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _employeeList.length,
-                          itemBuilder: (context, index) {
-                            return _employeeTile(_employeeList[index]);
-                          },
-                        ),
+                  ? _emptyBox("No employee attendance data available")
+                  : ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _employeeList.length,
+                itemBuilder: (context, index) {
+                  return _employeeTile(_employeeList[index]);
+                },
+              ),
               const SizedBox(height: 30),
             ],
           ),
@@ -435,7 +435,7 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
   Widget _statusChip(String status) {
     Color c;
     String label = status.toUpperCase();
-    
+
     switch (status.toLowerCase()) {
       case 'present':
         c = Colors.green;

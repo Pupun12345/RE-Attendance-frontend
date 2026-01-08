@@ -10,7 +10,7 @@ import 'package:smartcare_app/utils/constants.dart';
 import 'package:smartcare_app/screens/supervisor/supervisor_dashboard_screen.dart';
 import 'package:smartcare_app/screens/supervisor/worker_submit_complaint_screen.dart';
 
-enum ComplaintTab { newTab, pending, resolved }
+enum ComplaintTab { newTab,}
 
 class SubmitComplaintScreen extends StatefulWidget {
   const SubmitComplaintScreen({super.key});
@@ -36,15 +36,15 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
   bool _isLoadingWorkers = true;
 
   // Complaint History State
-  List<dynamic> _pendingComplaints = [];
-  List<dynamic> _resolvedComplaints = [];
-  bool _isLoadingHistory = false;
+  //List<dynamic> _pendingComplaints = [];
+  //List<dynamic> _resolvedComplaints = [];
+  //bool _isLoadingHistory = false;
 
   @override
   void initState() {
     super.initState();
     _fetchWorkers(); 
-    _fetchComplaintHistory(); // Initial fetch
+    //_fetchComplaintHistory(); // Initial fetch
 
     _searchController.addListener(_filterWorkers);
   }
@@ -59,7 +59,6 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
 
   // --- 1. DATA FETCHING ---
   Future<void> _refreshData() async {
-    await _fetchComplaintHistory();
     if (_allWorkers.isEmpty) await _fetchWorkers();
   }
 
@@ -102,7 +101,7 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
   }
 
   // ✅ ROBUST HISTORY FETCHING
-  Future<void> _fetchComplaintHistory() async {
+  /*Future<void> _fetchComplaintHistory() async {
     setState(() => _isLoadingHistory = true);
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -139,7 +138,7 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
     } finally {
       if (mounted) setState(() => _isLoadingHistory = false);
     }
-  }
+  }*/
 
   Future<void> captureImage() async {
       final picked = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 80);
@@ -170,7 +169,7 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
       var response = await http.Response.fromStream(await request.send());
       if (response.statusCode == 201) {
         _showSuccess("Complaint submitted!");
-        _fetchComplaintHistory(); 
+        //_fetchComplaintHistory();
         setState(() { titleController.clear(); descriptionController.clear(); selectedImage = null; });
       } else {
         _showError("Failed to submit");
@@ -185,10 +184,6 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
   void _onTabSelected(ComplaintTab tab) {
     setState(() {
       _selectedTab = tab;
-      // Fetch fresh data whenever tabs are switched
-      if (tab != ComplaintTab.newTab) {
-        _fetchComplaintHistory();
-      }
     });
   }
 
@@ -230,10 +225,6 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
               Row(
                 children: [
                   _buildTabButton("New", ComplaintTab.newTab, themeBlue),
-                  const SizedBox(width: 10),
-                  _buildTabButton("Pending", ComplaintTab.pending, Colors.orange),
-                  const SizedBox(width: 10),
-                  _buildTabButton("Resolved", ComplaintTab.resolved, Colors.green),
                 ],
               ),
               const SizedBox(height: 18),
@@ -308,14 +299,6 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
     switch (_selectedTab) {
       case ComplaintTab.newTab:
         return _buildNewTabContent();
-      case ComplaintTab.pending:
-        return _isLoadingHistory 
-          ? const Center(child: CircularProgressIndicator()) 
-          : _buildComplaintList(items: _pendingComplaints, emptyText: "No pending complaints.");
-      case ComplaintTab.resolved:
-        return _isLoadingHistory 
-          ? const Center(child: CircularProgressIndicator()) 
-          : _buildComplaintList(items: _resolvedComplaints, emptyText: "No resolved complaints.");
     }
   }
 
@@ -323,19 +306,27 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Select Worker", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        const Text(
+          "Select Worker",
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 8),
+
         TextField(
           controller: _searchController,
           decoration: InputDecoration(
             hintText: "Search worker by name or ID...",
             prefixIcon: const Icon(Icons.search),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             filled: true,
             fillColor: Colors.white,
           ),
         ),
+
         const SizedBox(height: 10),
+
         Container(
           constraints: const BoxConstraints(maxHeight: 300),
           decoration: BoxDecoration(
@@ -343,47 +334,73 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Colors.grey.shade300),
           ),
-          child: _isLoadingWorkers 
-            ? const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
-            : _filteredWorkers.isEmpty 
-                ? const Padding(padding: EdgeInsets.all(20), child: Text("No workers found."))
-                : ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: _filteredWorkers.length,
-                    separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade200),
-                    itemBuilder: (context, index) {
-                      final worker = _filteredWorkers[index];
-                      final String name = worker['name'] ?? 'Unknown';
-                      final String userId = worker['userId'] ?? 'N/A';
-                      final String dbId = worker['_id'] ?? worker['id'];
+          child: _isLoadingWorkers
+              ? const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(),
+            ),
+          )
+              : _filteredWorkers.isEmpty
+              ? const Padding(
+            padding: EdgeInsets.all(20),
+            child: Text("No workers found."),
+          )
+              : ListView.separated(
+            shrinkWrap: true,
+            itemCount: _filteredWorkers.length,
+            separatorBuilder: (_, __) =>
+                Divider(height: 1, color: Colors.grey.shade200),
+            itemBuilder: (context, index) {
+              final worker = _filteredWorkers[index];
+              final String name = worker['name'] ?? 'Unknown';
+              final String userId = worker['userId'] ?? 'N/A';
+              final String dbId =
+                  worker['_id'] ?? worker['id'];
 
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: themeBlue.withOpacity(0.1),
-                          child: Icon(Icons.person, color: themeBlue),
-                        ),
-                        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text(userId, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => WorkerSubmitComplaintScreen(
-                                name: name,
-                                userId: userId,
-                                dbId: dbId,
-                              ),
-                            ),
-                          ).then((_) => _fetchComplaintHistory());
-                        },
-                      );
-                    },
-                  ),
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor:
+                  themeBlue.withOpacity(0.1),
+                  child: Icon(Icons.person, color: themeBlue),
+                ),
+                title: Text(
+                  name,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  userId,
+                  style: const TextStyle(
+                      fontSize: 12, color: Colors.grey),
+                ),
+                trailing: const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: Colors.grey,
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          WorkerSubmitComplaintScreen(
+                            name: name,
+                            userId: userId,
+                            dbId: dbId,
+                          ),
+                    ),
+                  );
+                  // ❌ _fetchComplaintHistory() REMOVED
+                },
+              );
+            },
+          ),
         ),
       ],
     );
   }
+
 
   Widget _buildComplaintList({required List<dynamic> items, required String emptyText}) {
     if (items.isEmpty) {
