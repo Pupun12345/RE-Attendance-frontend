@@ -176,7 +176,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   // lib/screens/admin/admin_reports_screen.dart
 
 
-  String _generateMonthlySummaryCSV(List<dynamic> data) {
+  String _generateMonthlySummaryCSV(List<dynamic> data, int holidaysCount) {
     // Format date range as shown in image: "07-11-2025 TO 07-12-2025"
     String dateRangeStr = "N/A";
     if (_monthlyFromDate != null && _monthlyToDate != null) {
@@ -184,9 +184,8 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       "${DateFormat('dd-MM-yyyy').format(_monthlyFromDate!)} TO ${DateFormat('dd-MM-yyyy').format(_monthlyToDate!)}";
     }
 
-    // Calculate holidays (weekends + any marked holidays)
-    // For now, using default 5 as shown in image, but can be enhanced
-    const int defaultHolidays = 5;
+    // Use holidaysCount from database (from API response)
+    // This is the actual count of holidays in the holidays collection for the date range
 
     // The backend already returns aggregated data with presentDays, absentDays, etc.
     // So we can use the data directly without re-aggregating
@@ -200,7 +199,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         'designation': (user['role'] ?? 'WORKER').toString().toUpperCase(),
         'present': record['presentDays'] ?? 0,
         'absent': record['absentDays'] ?? 0,
-        'holidays': defaultHolidays,
+        'holidays': holidaysCount, // Use actual holidays count from database
         'ot': record['ot'] ?? record['overtime'] ?? record['overtimeHours'] ?? 0,
       });
     }
@@ -250,7 +249,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         dateRangeStr,
         item['present'],
         item['absent'],
-        defaultHolidays, // Using default holidays as shown in image
+        holidaysCount, // Use actual holidays count from database
         item['ot']
       ]);
     }
@@ -401,11 +400,15 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         return _showError("Server error ${res.statusCode}");
       }
 
-      final data = jsonDecode(res.body)['data'] ?? [];
+      final response = jsonDecode(res.body);
+      final data = response['data'] ?? [];
       if (data.isEmpty) return _showError("No data found");
 
+      // Get holidaysCount from API response (default to 0 if not present)
+      final holidaysCount = response['holidaysCount'] ?? 0;
+
       final csv = isMonthly
-          ? _generateMonthlySummaryCSV(data)
+          ? _generateMonthlySummaryCSV(data, holidaysCount)
           : _generateDailyCSV(data);
 
       final fileName =
