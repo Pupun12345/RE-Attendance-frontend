@@ -1,5 +1,6 @@
 // lib/screens/management/attendance_overview_screen.dart
 import 'dart:convert';
+<<<<<<< HEAD
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -9,6 +10,15 @@ import 'package:geocoding/geocoding.dart';
 import 'package:smartcare_app/utils/constants.dart';
 
 // 1. Model for attendance data
+=======
+import 'package:flutter/material.dart'; // ✅ --- THIS WAS THE BROKEN LINE ---
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:smartcare_app/utils/constants.dart';
+
+// 1. A Model to hold the fetched attendance data
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 class AttendanceRecord {
   final String id;
   final String status;
@@ -26,6 +36,7 @@ class AttendanceRecord {
 
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
     return AttendanceRecord(
+<<<<<<< HEAD
       id: json['_id']?.toString() ?? '',
       status: json['status']?.toString() ?? 'unknown',
       date: DateTime.parse(json['date']).toLocal(),
@@ -34,16 +45,31 @@ class AttendanceRecord {
           : null,
       checkOutTime: json['checkOutTime'] != null
           ? DateTime.parse(json['checkOutTime']).toLocal()
+=======
+      id: json['_id'],
+      status: json['status'],
+      date: DateTime.parse(json['date']),
+      checkInTime: json['checkInTime'] != null
+          ? DateTime.parse(json['checkInTime'])
+          : null,
+      checkOutTime: json['checkOutTime'] != null
+          ? DateTime.parse(json['checkOutTime'])
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
           : null,
     );
   }
 }
 
+<<<<<<< HEAD
+=======
+// 2. Convert to StatefulWidget to fetch data
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 class AttendanceOverviewScreen extends StatefulWidget {
   const AttendanceOverviewScreen({Key? key}) : super(key: key);
 
   @override
   State<AttendanceOverviewScreen> createState() =>
+<<<<<<< HEAD
       AttendanceOverviewScreenState();
 }
 
@@ -51,10 +77,18 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
   final Color themeBlue = const Color(0xFF0A3C7B);
   final Color lightBlue = const Color(0xFFE8F4F8);
 
+=======
+      _AttendanceOverviewScreenState();
+}
+
+class _AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
+  final Color themeBlue = const Color(0xFF0A3C7B);
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   List<AttendanceRecord> _myAttendanceRecords = [];
   bool _isLoading = true;
   String? _error;
 
+<<<<<<< HEAD
   // Today's attendance data
   String _currentLocation = "Fetching location...";
   String _todayCheckIn = "Not checked in";
@@ -243,6 +277,17 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
       print('Error loading today attendance: $e');
     }
   }
+=======
+  @override
+  void initState() {
+    super.initState();
+    _fetchMyAttendance();
+  }
+
+  // lib/screens/management/attendance_overview_screen.dart
+
+  // ... (keep your imports and AttendanceRecord class as they are) ...
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 
   Future<void> _fetchMyAttendance() async {
     try {
@@ -255,6 +300,7 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
       }
 
       final Map<String, dynamic> myUser = jsonDecode(userString);
+<<<<<<< HEAD
       final String myUserId = myUser['id'] ?? myUser['_id'];
 
       // Last 7 days INCLUDING today
@@ -262,6 +308,14 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
       final String endDate = DateFormat('yyyy-MM-dd').format(now);
       final String startDate =
       DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 6)));
+=======
+      final String myUserId = myUser['id'] ?? myUser['_id']; // Handle both ID formats
+
+      // Use a robust date range (e.g., past 90 days)
+      final String endDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final String startDate = DateFormat('yyyy-MM-dd')
+          .format(DateTime.now().subtract(const Duration(days: 90)));
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 
       final url = Uri.parse(
           '$apiBaseUrl/api/v1/reports/attendance/daily?startDate=$startDate&endDate=$endDate');
@@ -275,6 +329,7 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
         final data = jsonDecode(response.body);
         final List<dynamic> allRecords = data['data'];
 
+<<<<<<< HEAD
         // Filter only my records
         final List<AttendanceRecord> myRecords = allRecords
             .where((record) {
@@ -286,6 +341,19 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
           }
           return false;
         })
+=======
+        // ✅ BETTER FILTERING LOGIC
+        final List<AttendanceRecord> myRecords = allRecords
+            .where((record) {
+              // Check if 'user' is an object or just an ID string
+              if (record['user'] is Map) {
+                return record['user']['_id'] == myUserId || record['user']['id'] == myUserId;
+              } else if (record['user'] is String) {
+                return record['user'] == myUserId;
+              }
+              return false;
+            })
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
             .map((record) => AttendanceRecord.fromJson(record))
             .toList();
 
@@ -296,11 +364,18 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
           setState(() {
             _myAttendanceRecords = myRecords;
             _isLoading = false;
+<<<<<<< HEAD
             _error = null;
           });
         }
       } else {
         throw Exception("Failed to load attendance: ${response.statusCode}");
+=======
+          });
+        }
+      } else {
+        throw Exception("Failed to load attendance.");
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       }
     } catch (e) {
       if (mounted) {
@@ -312,6 +387,7 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
     }
   }
 
+<<<<<<< HEAD
   Future<void> _refreshData() async {
     setState(() {
       _isLoading = true;
@@ -480,11 +556,24 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
         ),
       ],
     );
+=======
+  Color getStatusColor(String status) {
+    if (status == "present") return Colors.green;
+    if (status == "absent") return Colors.red;
+    return Colors.grey;
+  }
+
+  IconData getStatusIcon(String status) {
+    if (status == "present") return Icons.check_circle;
+    if (status == "absent") return Icons.cancel;
+    return Icons.help_outline;
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+<<<<<<< HEAD
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         elevation: 0,
@@ -847,6 +936,62 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
           ],
         ),
       ),
+=======
+      backgroundColor: Colors.grey[100],
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(color: themeBlue))
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      "Error: $_error",
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              : _myAttendanceRecords.isEmpty
+                  ? Center(
+                      child: Text(
+                        "No attendance records found for the last 90 days.",
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16.0),
+                      itemCount: _myAttendanceRecords.length,
+                      itemBuilder: (context, index) {
+                        final item = _myAttendanceRecords[index];
+
+                        return Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ListTile(
+                            leading: Icon(
+                              getStatusIcon(item.status),
+                              color: getStatusColor(item.status),
+                            ),
+                            title: Text(
+                              DateFormat('EEE, dd MMM yyyy').format(item.date),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            trailing: Text(
+                              item.status[0].toUpperCase() +
+                                  item.status.substring(1),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: getStatusColor(item.status),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
     );
   }
 }

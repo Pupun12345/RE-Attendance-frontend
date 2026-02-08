@@ -25,7 +25,10 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
   String dateTime = "";
   String location = "Fetching location...";
   String coordsText = "Fetching coordinates...";
+<<<<<<< HEAD
   String _fullAddress = ""; // ✅ Complete address for API
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   final Color themeBlue = const Color(0xFF0B3B8C);
   File? selfieImage;
   Position? _currentPosition;
@@ -89,7 +92,10 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
         selfieImage = File(jsonData['imagePath']);
         coordsText = "Lat: ${jsonData['lat']}, Lng: ${jsonData['lng']}";
         location = jsonData['location'];
+<<<<<<< HEAD
         _fullAddress = jsonData['fullAddress'] ?? ""; // ✅ Restore full address
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
         dateTime = jsonData['displayTime'] ?? "Pending Time";
 
         if (needsAdmin) {
@@ -110,6 +116,7 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
     File img = File(pendingData['imagePath']);
     bool needsAdmin = pendingData['needsAdminApproval'] ?? false;
 
+<<<<<<< HEAD
     await _uploadData(
         img,
         pendingData['lat'],
@@ -119,6 +126,10 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
         true,
         needsAdmin
     );
+=======
+    await _uploadData(img, pendingData['lat'], pendingData['lng'],
+        pendingData['dateTime'], true, needsAdmin);
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   }
 
   void updateDateTime() {
@@ -130,12 +141,17 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
       final now = DateTime.now();
       setState(() {
         dateTime =
+<<<<<<< HEAD
         "${now.day.toString().padLeft(2, '0')} ${_month(now.month)} ${now.year} ${_formatTime(now)}";
+=======
+            "${now.day.toString().padLeft(2, '0')} ${_month(now.month)} ${now.year} ${_formatTime(now)}";
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       });
     });
   }
 
   String _month(int m) => [
+<<<<<<< HEAD
     "Jan",
     "Feb",
     "Mar",
@@ -149,6 +165,21 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
     "Nov",
     "Dec"
   ][m - 1];
+=======
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+      ][m - 1];
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 
   String _formatTime(DateTime now) {
     int hour = now.hour;
@@ -159,6 +190,7 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
 
   Future<void> fetchLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+<<<<<<< HEAD
     if (!serviceEnabled) {
       setState(() {
         location = "Location services disabled";
@@ -166,11 +198,15 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
       });
       return;
     }
+=======
+    if (!serviceEnabled) return;
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 
     LocationPermission p = await Geolocator.checkPermission();
     if (p == LocationPermission.denied) {
       p = await Geolocator.requestPermission();
     }
+<<<<<<< HEAD
     if (p == LocationPermission.deniedForever) {
       setState(() {
         location = "Location permission denied";
@@ -232,6 +268,26 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
         coordsText = "Error: ${e.toString()}";
       });
     }
+=======
+    if (p == LocationPermission.deniedForever) return;
+
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best);
+      _currentPosition = pos;
+      setState(() {
+        coordsText =
+            "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
+      });
+
+      List<Placemark> places =
+          await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      Placemark place = places.first;
+      setState(() {
+        location = "${place.locality ?? ""}, ${place.subLocality ?? ""}";
+      });
+    } catch (e) {}
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   }
 
   Future<bool> _checkInternet() async {
@@ -251,6 +307,7 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
     }
   }
 
+<<<<<<< HEAD
   Future<void> _uploadData(
       File img,
       double lat,
@@ -260,6 +317,10 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
       bool isRetry,
       bool sendToAdminQueue
       ) async {
+=======
+  Future<void> _uploadData(File img, double lat, double lng, String dt,
+      bool isRetry, bool sendToAdminQueue) async {
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
     if (!mounted) return;
     setState(() => _isLoading = true);
 
@@ -271,6 +332,7 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
           ? "$_apiUrl/api/v1/attendance/checkin-pending"
           : "$_apiUrl/api/v1/attendance/checkin";
 
+<<<<<<< HEAD
       // ✅ Print Request Start Time
       final requestStartTime = DateTime.now();
       print("\n╔════════════════════════════════════════════╗");
@@ -295,6 +357,14 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
       request.fields["longitude"] = lng.toString();
       request.fields["dateTime"] =
       isRetry ? dt : DateTime.now().toIso8601String();
+=======
+      var request = http.MultipartRequest('POST', Uri.parse(endpoint));
+      request.headers["Authorization"] = "Bearer $token";
+
+      request.fields["location"] = "$lat,$lng";
+      request.fields["dateTime"] =
+          isRetry ? dt : DateTime.now().toIso8601String();
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 
       request.files.add(await http.MultipartFile.fromPath(
         'attendanceImage',
@@ -302,6 +372,7 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
         contentType: MediaType("image", "jpeg"),
       ));
 
+<<<<<<< HEAD
       print("📤 Sending request...\n");
       var resp = await request.send();
       var res = await http.Response.fromStream(resp);
@@ -322,6 +393,12 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
       if (res.statusCode == 200 || res.statusCode == 201) {
         print("✅ SUCCESS: Check-in completed successfully!\n");
 
+=======
+      var resp = await request.send();
+      var res = await http.Response.fromStream(resp);
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
         _retryTimer?.cancel();
         await prefs.remove("pending_checkin");
 
@@ -337,19 +414,25 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
         _showSuccess(msg);
         if (mounted) Navigator.pop(context);
       } else {
+<<<<<<< HEAD
         print("❌ ERROR: Request failed with status ${res.statusCode}\n");
 
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
         _retryTimer?.cancel();
         final responseData = jsonDecode(res.body);
         _showError(responseData['message'] ?? "Check-in failed");
       }
     } catch (e) {
+<<<<<<< HEAD
       print("\n╔════════════════════════════════════════════╗");
       print("║       API REQUEST FAILED                   ║");
       print("╚════════════════════════════════════════════╝");
       print("❌ Error: $e");
       print("═══════════════════════════════════════════════\n");
 
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       if (!isRetry) {
         _startOneMinuteTimer();
       }
@@ -358,10 +441,13 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
     }
   }
 
+<<<<<<< HEAD
   String _formatDateTime(DateTime dt) {
     return "${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.year} ${_formatTime(dt)}";
   }
 
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   void _startOneMinuteTimer() {
     _savePending(needsAdminApproval: false);
 
@@ -396,6 +482,7 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
   }
 
   Future<void> confirmCheckIn() async {
+<<<<<<< HEAD
     if (selfieImage == null) {
       _showError("Please take a selfie first");
       return;
@@ -421,12 +508,23 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
         false,
         false
     );
+=======
+    if (selfieImage == null) return;
+    if (_currentPosition == null) return;
+
+    await _uploadData(selfieImage!, _currentPosition!.latitude,
+        _currentPosition!.longitude, "", false, false);
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   }
 
   Future<void> _savePending({required bool needsAdminApproval}) async {
     if (selfieImage == null) return;
 
+<<<<<<< HEAD
     // ✅ Move file from Cache to Permanent Storage
+=======
+    // ✅ FIX: Move file from Cache to Permanent Storage
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
     final directory = await getApplicationDocumentsDirectory();
     final String fileName =
         'checkin_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -437,10 +535,16 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final data = {
+<<<<<<< HEAD
       "imagePath": newImage.path,
       "lat": _currentPosition!.latitude,
       "lng": _currentPosition!.longitude,
       "fullAddress": _fullAddress, // ✅ Save full address
+=======
+      "imagePath": newImage.path, // ✅ Save the PERMANENT path
+      "lat": _currentPosition!.latitude,
+      "lng": _currentPosition!.longitude,
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       "dateTime": DateTime.now().toIso8601String(),
       "displayTime": dateTime,
       "location": location,
@@ -451,7 +555,11 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
 
     setState(() {
       _isPendingMode = true;
+<<<<<<< HEAD
       selfieImage = newImage;
+=======
+      selfieImage = newImage; // Update UI to refer to the safe file
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
     });
 
     if (!needsAdminApproval && _retrySeconds == 0) {
@@ -480,6 +588,7 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
     bool hasImage = selfieImage != null;
 
     return Scaffold(
+<<<<<<< HEAD
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: themeBlue,
@@ -695,10 +804,89 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
               ),
             ],
           ),
+=======
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: themeBlue,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.pop(ctx),
+        ),
+        title:
+            const Text("Selfie Punch", style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          children: [
+            Row(children: [
+              const Icon(Icons.access_time),
+              const SizedBox(width: 8),
+              Text(dateTime)
+            ]),
+            Row(children: [
+              const Icon(Icons.person_outline),
+              const SizedBox(width: 8),
+              Text(_userName)
+            ]),
+            const Spacer(),
+            if (hasImage)
+              ClipOval(
+                  child: Image.file(selfieImage!,
+                      height: 160, width: 160, fit: BoxFit.cover)),
+            if (_isRetrying) ...[
+              const SizedBox(height: 20),
+              Text("Retrying connection... (${60 - _retrySeconds}s left)",
+                  style: const TextStyle(
+                      color: Colors.orange, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 5),
+              LinearProgressIndicator(
+                  value: _retrySeconds / 60, color: Colors.orange),
+            ],
+            const SizedBox(height: 20),
+            Row(children: [
+              const Icon(Icons.gps_fixed),
+              const SizedBox(width: 8),
+              Expanded(child: Text(coordsText))
+            ]),
+            Row(children: [
+              const Icon(Icons.location_on_outlined),
+              const SizedBox(width: 8),
+              Expanded(child: Text(location))
+            ]),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading || _isRetrying
+                    ? null
+                    : (_isPendingMode
+                        ? _attemptSync
+                        : (hasImage ? confirmCheckIn : openCamera)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeBlue,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50)),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                        _isPendingMode
+                            ? "Pending (Tap to Sync)"
+                            : (hasImage ? "Confirm Check-In" : "Take Photo"),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+              ),
+            )
+          ],
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
         ),
       ),
     );
   }
+<<<<<<< HEAD
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Row(
@@ -1180,3 +1368,6 @@ class _SelfieCheckInScreenState extends State<SelfieCheckInScreen> {
 //     );
 //   }
 // }
+=======
+}
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3

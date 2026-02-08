@@ -1,8 +1,18 @@
+<<<<<<< HEAD
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:smartcare_app/utils/file_saver_mobile.dart'
 if (dart.library.html) 'package:smartcare_app/utils/file_saver_web.dart';
+=======
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+
+import 'package:smartcare_app/utils/file_saver_mobile.dart'
+if (dart.library.html) 'package:smartcare_app/utils/file_saver_web.dart';
+
+
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -11,6 +21,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:csv/csv.dart';
 import 'package:intl/intl.dart';
 import 'package:mime/mime.dart';
+<<<<<<< HEAD
+=======
+
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 import 'package:smartcare_app/utils/constants.dart';
 import 'package:smartcare_app/screens/admin/admin_dashboard_screen.dart';
 
@@ -24,18 +38,33 @@ class AdminReportsScreen extends StatefulWidget {
 class _AdminReportsScreenState extends State<AdminReportsScreen> {
   final Color primaryBlue = const Color(0xFF0D47A1);
   final Color lightBlue = const Color(0xFFE3F2FD);
+<<<<<<< HEAD
   bool _isDailyExporting = false;
   bool _isMonthlyExporting = false;
+=======
+
+  bool _isDailyExporting = false;
+  bool _isMonthlyExporting = false;
+
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   DateTime _dailyDate = DateTime.now();
   DateTime? _monthlyFromDate;
   DateTime? _monthlyToDate;
 
 
+<<<<<<< HEAD
   int _monthlyHolidaysCount = 0;
 
 
   Future<void> _saveCsvFile(String csvData, String fileName) async {
     try {
+=======
+  Future<void> _saveCsvFile(String csvData, String fileName) async {
+    try {
+      // ==========================
+      // 🌐 WEB
+      // ==========================
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       if (kIsWeb) {
         saveCsvWeb(csvData, fileName);
 
@@ -49,6 +78,12 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         return;
       }
 
+<<<<<<< HEAD
+=======
+      // ==========================
+      // 📱 ANDROID / IOS
+      // ==========================
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       final bytes = utf8.encode(csvData);
 
       const platform = MethodChannel('downloads_channel');
@@ -151,6 +186,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       final latitude = location['latitude'] ?? record['latitude'] ?? '0.0';
 
 
+<<<<<<< HEAD
+=======
+      // Add header rows matching image format
+
+
+
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       // Format status as "PRESNT" or "ABSENT" (matching image)
       String status = 'ABSENT';
       if (record['status'] != null) {
@@ -187,6 +229,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   }
 
 
+<<<<<<< HEAD
+=======
+  // ==========================
+  // 3. MONTHLY REPORT GENERATOR
+  // ==========================
+  // lib/screens/admin/admin_reports_screen.dart
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 
 
   String _generateMonthlyDetailedCSV(List<dynamic> data) {
@@ -196,7 +245,11 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         r = r?.toUpperCase() ?? '';
         if (r.contains('MANAGEMENT')) return 1;
         if (r.contains('SUPERVISOR')) return 2;
+<<<<<<< HEAD
         return 3; // Worker
+=======
+        return 3;
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       }
 
       return p(a['user']?['role']).compareTo(p(b['user']?['role']));
@@ -204,6 +257,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
     final rows = <List<dynamic>>[];
 
+<<<<<<< HEAD
     // Date range for header
     String range = '';
     if (_monthlyFromDate != null && _monthlyToDate != null) {
@@ -215,6 +269,18 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     rows.add([
       '',
       'MONTHLY ATTENDANCE SUMMARY REPORT ($range)',
+=======
+    String range = '';
+    if (_monthlyFromDate != null && _monthlyToDate != null) {
+      range =
+      "${DateFormat('dd-MM-yyyy').format(_monthlyFromDate!)} TO ${DateFormat('dd-MM-yyyy').format(_monthlyToDate!)}";
+    }
+
+    rows.add([]);
+    rows.add([
+      '',
+      'MONTHLY ATTENDANCE REPORT ($range)',
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       '',
       '',
       '',
@@ -223,6 +289,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       '',
       '',
       '',
+<<<<<<< HEAD
     ]);
     rows.add([
       '',
@@ -239,11 +306,19 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     rows.add([]);
 
     // ✅ Header row - SUMMARY format with HOLIDAYS column
+=======
+      '',
+      ''
+    ]);
+    rows.add([]);
+
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
     rows.add([
       'SL No.',
       'UNIQUE ID',
       'DESIGNATION',
       'NAME',
+<<<<<<< HEAD
       'PRESENT DAYS',
       'ABSENT DAYS',
       'LEAVE DAYS',
@@ -253,27 +328,106 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     ]);
 
     // Data rows
+=======
+      'DATE',
+      'PRESENT',
+      'OT',
+      'CHECK-IN',
+      'CHECK-OUT',
+      'LOCATION AREA',
+      'LOCATION SIZE',
+      'PHOTO'
+    ]);
+
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
     for (int i = 0; i < data.length; i++) {
       final r = data[i];
       final u = r['user'] ?? {};
 
+<<<<<<< HEAD
+=======
+      // -------- LOCATION FIX (ALL CASES) --------
+      final location =
+          r['checkInLocation'] ??
+              r['location'] ??
+              {};
+
+      final lat =
+          location['latitude'] ??
+              location['lat'] ??
+              r['latitude'] ??
+              '';
+
+      final lng =
+          location['longitude'] ??
+              location['lng'] ??
+              r['longitude'] ??
+              '';
+
+      final address =
+          location['address'] ??
+              r['address'] ??
+              '';
+
+      // -------- STATUS FIX --------
+      String status = 'ABSENT';
+      final rawStatus = r['status']?.toString().toUpperCase() ?? '';
+
+      if (
+      rawStatus == 'P' ||
+          rawStatus == 'PRESENT' ||
+          rawStatus == 'PRESNT' ||
+          r['isPresent'] == true
+      ) {
+        status = 'PRESNT';
+      }
+
+      // -------- TIME FIX (ALL KEYS) --------
+      final checkInTime =
+          r['checkInTime'] ??
+              r['checkinTime'] ??
+              r['check_in_time'];
+
+      final checkOutTime =
+          r['checkOutTime'] ??
+              r['checkoutTime'] ??
+              r['check_out_time'];
+
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       rows.add([
         i + 1,
         u['userId'] ?? 'N/A',
         (u['role'] ?? 'N/A').toString().toUpperCase(),
         u['name'] ?? 'N/A',
+<<<<<<< HEAD
         r['presentDays'] ?? 0,
         r['absentDays'] ?? 0,
         r['leaveDays'] ?? 0,
         _monthlyHolidaysCount, // ✅ Show holidays count for each row
         r['lateDays'] ?? 0,
         r['overtimeHours'] ?? r['overtime'] ?? r['ot'] ?? 0,
+=======
+        _formatDate(r['date'] ?? r['dateTime']),
+        status,
+        r['ot'] ?? r['overtime'] ?? 0,
+        _formatTime(checkInTime),
+        _formatTime(checkOutTime),
+        address,
+        '$lng - $lat',
+        ''
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       ]);
     }
 
     return const ListToCsvConverter().convert(rows);
   }
 
+<<<<<<< HEAD
+=======
+  // ============================================================
+  // API CALL
+  // ============================================================
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   Future<void> _exportAttendanceReport({
     required String endpoint,
     required bool isMonthly,
@@ -282,6 +436,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
+<<<<<<< HEAD
 
       if (token == null) {
         print("❌ TOKEN NOT FOUND");
@@ -305,10 +460,20 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       print("📦 RAW BODY   => ${res.body}");
       print("📥 RESPONSE END ======================");
 
+=======
+      if (token == null) return _showError("Unauthorized");
+
+      final res = await http.get(
+        Uri.parse('$apiBaseUrl$endpoint'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       if (res.statusCode != 200) {
         return _showError("Server error ${res.statusCode}");
       }
 
+<<<<<<< HEAD
       final decoded = jsonDecode(res.body);
 
       // 🔹 PRINT DECODED JSON
@@ -330,10 +495,16 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       if (data.isEmpty) {
         return _showError("No data found");
       }
+=======
+      final data = jsonDecode(res.body)['data'] ?? [];
+      print("MONTHLY API SAMPLE => ${data.isNotEmpty ? data.first : 'EMPTY'}");//dedug
+      if (data.isEmpty) return _showError("No data found");
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 
       final csv = isMonthly
           ? _generateMonthlyDetailedCSV(data)
           : _generateDailyCSV(data);
+<<<<<<< HEAD
 
       final fileName =
           "${prefix}_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.csv";
@@ -343,12 +514,22 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       await _saveCsvFile(csv, fileName);
     } catch (e) {
       print("❌ EXPORT ERROR => $e");
+=======
+      final fileName =
+          "${prefix}_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.csv";
+
+      await _saveCsvFile(csv, fileName);
+    } catch (e) {
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       _showError(e.toString());
     }
   }
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   // ============================================================
   // DATE PICKERS
   // ============================================================
@@ -383,6 +564,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   // ============================================================
   // HELPERS
+<<<<<<< HEAD
 
   // ============================================================
 // HELPERS - FIXED FOR TIMEZONE
@@ -411,10 +593,18 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       return DateFormat('dd-MM-yyyy').format(dateTime);
     } catch (e) {
       print("❌ Date format error: $e for value: $d");
+=======
+  // ============================================================
+  String _formatDate(d) {
+    try {
+      return DateFormat('dd-MM-yyyy').format(DateTime.parse(d));
+    } catch (_) {
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       return 'N/A';
     }
   }
 
+<<<<<<< HEAD
   String _formatTime(dynamic t) {
     if (t == null) return '';
 
@@ -438,6 +628,12 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       return DateFormat('hh:mm a').format(dateTime);
     } catch (e) {
       print("❌ Time format error: $e for value: $t");
+=======
+  String _formatTime(t) {
+    try {
+      return DateFormat('hh:mm a').format(DateTime.parse(t));
+    } catch (_) {
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       return '';
     }
   }
@@ -456,9 +652,14 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   void _showError(String m) {
     if (!mounted) return;
+<<<<<<< HEAD
     ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(m), backgroundColor: Colors.red)
     );
+=======
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(m), backgroundColor: Colors.red));
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   }
 
   @override
@@ -617,6 +818,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       ),
     );
   }
+<<<<<<< HEAD
 }
 
 //
@@ -1435,3 +1637,6 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 //     );
 //   }
 // }
+=======
+}
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3

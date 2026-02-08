@@ -493,6 +493,7 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+<<<<<<< HEAD
           Text(
       "Manage your daily attendance from here",
 
@@ -501,6 +502,22 @@ class _SupervisorDashboardScreenState extends State<SupervisorDashboardScreen> {
               color: Colors.grey.shade700,
               fontWeight: FontWeight.w500,
             ),
+=======
+          Row(
+            children: [
+              const Icon(Icons.access_time, size: 18),
+              const SizedBox(width: 6),
+              Expanded(child: Text("Current Status: $_currentStatus")),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.location_on_outlined, size: 18),
+              const SizedBox(width: 6),
+              Expanded(child: Text(_location)),
+            ],
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
           ),
           const SizedBox(height: 16),
           Row(

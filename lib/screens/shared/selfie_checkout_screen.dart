@@ -25,7 +25,10 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
   String dateTime = "";
   String location = "Fetching location...";
   String coordsText = "Fetching coordinates...";
+<<<<<<< HEAD
   String _fullAddress = ""; // ✅ Complete address for API
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   final Color themeBlue = const Color(0xFF0B3B8C);
   File? selfieImage;
   Position? _currentPosition;
@@ -94,7 +97,10 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
         selfieImage = File(jsonData['imagePath']);
         coordsText = jsonData['coordsText'] ?? coordsText;
         location = jsonData['location'] ?? location;
+<<<<<<< HEAD
         _fullAddress = jsonData['fullAddress'] ?? ""; // ✅ Restore full address
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
         dateTime = jsonData['displayTime'] ?? dateTime;
 
         if (needsAdmin) {
@@ -116,6 +122,7 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     bool needsAdmin = pendingData['needsAdminApproval'] ?? false;
 
     await _uploadCheckout(
+<<<<<<< HEAD
       imageFile: img,
       lat: (pendingData['lat'] as num).toDouble(),
       lng: (pendingData['lng'] as num).toDouble(),
@@ -124,6 +131,14 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
       isRetry: true,
       sendToAdminQueue: needsAdmin,
     );
+=======
+        imageFile: img,
+        lat: (pendingData['lat'] as num).toDouble(),
+        lng: (pendingData['lng'] as num).toDouble(),
+        dt: pendingData['dateTime'],
+        isRetry: true,
+        sendToAdminQueue: needsAdmin);
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   }
 
   void updateDateTime() {
@@ -168,16 +183,24 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     return "$hour:$minute:$second $ampm";
   }
 
+<<<<<<< HEAD
   String _formatDateTime(DateTime dt) {
     return "${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.year} ${_formatTime(dt)}";
   }
 
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   Future<void> fetchLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       setState(() {
+<<<<<<< HEAD
         location = "Location services disabled";
         coordsText = "Enable GPS";
+=======
+        location = "GPS disabled";
+        coordsText = "GPS disabled";
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       });
       return;
     }
@@ -188,7 +211,11 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
       if (permission == LocationPermission.denied) {
         setState(() {
           location = "Location permission denied";
+<<<<<<< HEAD
           coordsText = "Allow location access";
+=======
+          coordsText = "Permission denied";
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
         });
         return;
       }
@@ -196,15 +223,24 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
 
     if (permission == LocationPermission.deniedForever) {
       setState(() {
+<<<<<<< HEAD
         location = "Permission permanently denied";
         coordsText = "Check app settings";
+=======
+        location = "Permission blocked";
+        coordsText = "Permission blocked";
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       });
       return;
     }
 
     try {
       final pos = await Geolocator.getCurrentPosition(
+<<<<<<< HEAD
         desiredAccuracy: LocationAccuracy.high, // ✅ High accuracy
+=======
+        desiredAccuracy: LocationAccuracy.high,
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
         timeLimit: const Duration(seconds: 10),
       );
 
@@ -213,11 +249,18 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
       if (mounted) {
         setState(() {
           coordsText =
+<<<<<<< HEAD
           "Lat: ${pos.latitude.toStringAsFixed(6)}, Lng: ${pos.longitude.toStringAsFixed(6)}";
         });
       }
 
       // ✅ Get detailed address
+=======
+              "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
+        });
+      }
+
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       try {
         List<Placemark> placemarks = await placemarkFromCoordinates(
           pos.latitude,
@@ -228,6 +271,7 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
 
         if (placemarks.isNotEmpty) {
           Placemark place = placemarks[0];
+<<<<<<< HEAD
 
           // ✅ Build complete address
           List<String> addressParts = [];
@@ -261,27 +305,52 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
             _fullAddress =
             fullAddr.isNotEmpty ? fullAddr : "Address unavailable";
             location = displayAddr.isNotEmpty ? displayAddr : "Location found";
+=======
+          String city = place.locality ?? place.subAdministrativeArea ?? "";
+          String area = place.thoroughfare ?? place.subLocality ?? "";
+
+          setState(() {
+            if (area.isEmpty && city.isEmpty) {
+              location = "Unknown Location";
+            } else if (area.isEmpty) {
+              location = city;
+            } else {
+              location = "$area, $city";
+            }
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
           });
         } else {
           setState(() {
             location = "Address not found";
+<<<<<<< HEAD
             _fullAddress = "$pos.latitude,$pos.longitude";
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
           });
         }
       } catch (e) {
         if (mounted) {
           setState(() {
             location =
+<<<<<<< HEAD
             "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
             _fullAddress = "${pos.latitude},${pos.longitude}";
+=======
+                "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
           });
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
+<<<<<<< HEAD
           location = "Failed to fetch location";
           coordsText = "Error: ${e.toString()}";
+=======
+          location = "Error fetching location.";
+          coordsText = "Error fetching coordinates.";
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
         });
       }
     }
@@ -307,6 +376,7 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
 
   Future<void> confirmCheckout() async {
     if (selfieImage == null) {
+<<<<<<< HEAD
       _showError("Please take a selfie first");
       return;
     }
@@ -319,10 +389,18 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     if (_fullAddress.isEmpty) {
       _showError("Address not available. Please wait...");
       fetchLocation(); // ✅ Retry fetching address
+=======
+      _showError("Selfie is required");
+      return;
+    }
+    if (_currentPosition == null) {
+      _showError("Location is required. Please wait.");
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       return;
     }
 
     await _uploadCheckout(
+<<<<<<< HEAD
       imageFile: selfieImage!,
       lat: _currentPosition!.latitude,
       lng: _currentPosition!.longitude,
@@ -331,13 +409,24 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
       isRetry: false,
       sendToAdminQueue: false,
     );
+=======
+        imageFile: selfieImage!,
+        lat: _currentPosition!.latitude,
+        lng: _currentPosition!.longitude,
+        dt: "",
+        isRetry: false,
+        sendToAdminQueue: false);
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   }
 
   Future<void> _uploadCheckout({
     required File imageFile,
     required double lat,
     required double lng,
+<<<<<<< HEAD
     required String address, // ✅ Accept address parameter
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
     required String dt,
     required bool isRetry,
     required bool sendToAdminQueue,
@@ -349,6 +438,7 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
       final token = prefs.getString('token');
       final role = prefs.getString('role');
 
+<<<<<<< HEAD
       String endpoint = sendToAdminQueue
           ? "$_apiUrl/api/v1/attendance/checkout-pending"
           : "$_apiUrl/api/v1/attendance/checkout";
@@ -367,10 +457,16 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
       print("⚠️  Admin Queue: $sendToAdminQueue");
       print("🖼️  Image Path: ${imageFile.path}");
       print("═══════════════════════════════════════════════\n");
+=======
+      String endpoint= sendToAdminQueue
+            ? "$_apiUrl/api/v1/attendance/checkout-pending"
+            : "$_apiUrl/api/v1/attendance/checkout";
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 
       var request = http.MultipartRequest('POST', Uri.parse(endpoint));
 
       request.headers['Authorization'] = 'Bearer $token';
+<<<<<<< HEAD
 
       // ✅ Send proper location format
       request.fields['location'] = address.isNotEmpty ? address : "$lat,$lng";
@@ -378,6 +474,11 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
       request.fields['longitude'] = lng.toString();
       request.fields['dateTime'] =
       isRetry ? dt : DateTime.now().toIso8601String();
+=======
+      request.fields['location'] = "$lat,$lng";
+      request.fields['dateTime'] =
+          isRetry ? dt : DateTime.now().toIso8601String();
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 
       request.files.add(
         await http.MultipartFile.fromPath(
@@ -387,6 +488,7 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
         ),
       );
 
+<<<<<<< HEAD
       print("📤 Sending checkout request...\n");
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
@@ -407,6 +509,12 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         print("✅ SUCCESS: Check-out completed successfully!\n");
 
+=======
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
         _retryTimer?.cancel();
         await prefs.remove('pending_checkout');
 
@@ -422,19 +530,25 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
         _showSuccess(msg);
         if (mounted) Navigator.pop(context);
       } else {
+<<<<<<< HEAD
         print("❌ ERROR: Checkout failed with status ${response.statusCode}\n");
 
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
         _retryTimer?.cancel();
         final responseData = jsonDecode(response.body);
         _showError(responseData['message'] ?? "Check-out failed");
       }
     } catch (e) {
+<<<<<<< HEAD
       print("\n╔════════════════════════════════════════════╗");
       print("║       CHECKOUT API REQUEST FAILED          ║");
       print("╚════════════════════════════════════════════╝");
       print("❌ Error: $e");
       print("═══════════════════════════════════════════════\n");
 
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       if (!isRetry) {
         _startOneMinuteTimer();
       }
@@ -481,7 +595,11 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
   Future<void> _savePending({required bool needsAdminApproval}) async {
     if (selfieImage == null) return;
 
+<<<<<<< HEAD
     // ✅ Move file from Cache to Permanent Storage
+=======
+    // ✅ FIX: Move file from Cache to Permanent Storage
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
     final directory = await getApplicationDocumentsDirectory();
     final String fileName =
         'checkout_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -491,10 +609,16 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final data = {
+<<<<<<< HEAD
       "imagePath": newImage.path,
       "lat": _currentPosition!.latitude,
       "lng": _currentPosition!.longitude,
       "fullAddress": _fullAddress, // ✅ Save full address
+=======
+      "imagePath": newImage.path, // ✅ Save the PERMANENT path
+      "lat": _currentPosition!.latitude,
+      "lng": _currentPosition!.longitude,
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       "dateTime": DateTime.now().toIso8601String(),
       "displayTime": dateTime,
       "location": location,
@@ -534,16 +658,25 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
     final bool hasImage = selfieImage != null;
 
     return Scaffold(
+<<<<<<< HEAD
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: themeBlue,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+=======
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: themeBlue,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
         title: const Text(
+<<<<<<< HEAD
           "Selfie Check-Out",
           style: TextStyle(
             color: Colors.white,
@@ -759,10 +892,133 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
               ),
             ],
           ),
+=======
+          "Selfie Punch Out",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.access_time, size: 20, color: Colors.black),
+                const SizedBox(width: 8),
+                Text(dateTime, style: const TextStyle(fontSize: 16)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.person_outline, size: 20),
+                const SizedBox(width: 8),
+                Text(_userName, style: const TextStyle(fontSize: 16)),
+              ],
+            ),
+
+            const Spacer(),
+
+            if (hasImage)
+              Center(
+                child: ClipOval(
+                  child: Image.file(
+                    selfieImage!,
+                    height: 160,
+                    width: 160,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+
+            // 🔹 Show Retry Progress
+            if (_isRetrying) ...[
+              const SizedBox(height: 20),
+              Text("Retrying connection... (${60 - _retrySeconds}s left)",
+                  style: const TextStyle(
+                      color: Colors.orange, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 5),
+              LinearProgressIndicator(
+                  value: _retrySeconds / 60, color: Colors.orange),
+            ],
+
+            const SizedBox(height: 20),
+
+            Row(
+              children: [
+                const Icon(Icons.gps_fixed, size: 18),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    coordsText,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined, size: 18),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    location,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: _isLoading || _isRetrying
+                    ? null
+                    : (_isPendingMode
+                        ? _attemptSync
+                        : (hasImage ? confirmCheckout : openCamera)),
+                icon: _isLoading
+                    ? Container()
+                    : Icon(
+                        _isPendingMode
+                            ? Icons.hourglass_bottom
+                            : (hasImage ? Icons.check : Icons.camera_alt),
+                        size: 22,
+                      ),
+                label: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                        _isPendingMode
+                            ? "Pending (Tap to Sync)"
+                            : (hasImage ? "Confirm Clock-Out" : "Take Photo"),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      _isPendingMode ? Colors.orange.shade700 : themeBlue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                ),
+              ),
+            ),
+          ],
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
         ),
       ),
     );
   }
+<<<<<<< HEAD
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Row(
@@ -1394,3 +1650,6 @@ class _SelfieCheckOutScreenState extends State<SelfieCheckOutScreen> {
 //     );
 //   }
 // }
+=======
+}
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3

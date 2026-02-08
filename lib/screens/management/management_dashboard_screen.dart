@@ -65,12 +65,21 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
       });
     }
 
+<<<<<<< HEAD
 
     _screens = [
       _buildHomeScreen(),
       const AttendanceOverviewScreen(),
       const SubmitComplaintScreen(),
       _buildProfileScreen(),
+=======
+    // Initialize screens after data is loaded
+    _screens = [
+      _buildHomeScreen(), // Index 0
+      const AttendanceOverviewScreen(), // Index 1
+      const SubmitComplaintScreen(), // Index 2
+      _buildProfileScreen(), // Index 3 (Profile)
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
     ];
 
     setState(() {
@@ -195,6 +204,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // --- Self-Attendance Card ---
+<<<<<<< HEAD
           // buildCard(
           //   title: "Self-Attendance",
           //   child: Column(
@@ -279,11 +289,43 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
+=======
+          buildCard(
+            title: "Self-Attendance",
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.access_time, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Current Status: $_currentStatus",
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      _location,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 15),
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
+<<<<<<< HEAD
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -305,6 +347,18 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
+=======
+                          // Navigate to SHARED screen
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const SelfieCheckInScreen()));
+                        },
+                        icon: const Icon(Icons.login, color: Colors.white),
+                        label: const Text("Check-In",
+                            style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeBlue,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
                         ),
                       ),
                     ),
@@ -312,6 +366,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
+<<<<<<< HEAD
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -333,6 +388,18 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
+=======
+                           // Navigate to SHARED screen
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => const SelfieCheckOutScreen()));
+                        },
+                        icon: const Icon(Icons.logout, color: Colors.white),
+                        label: const Text("Check-Out",
+                            style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeBlue,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
                         ),
                       ),
                     ),
@@ -341,7 +408,11 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
               ],
             ),
           ),
+<<<<<<< HEAD
 
+=======
+          
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
           // --- Overtime Card ---
           buildCard(
             title: "Overtime Submission",
@@ -536,6 +607,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
       ),
     );
   }
+<<<<<<< HEAD
 }
 
 
@@ -1696,3 +1768,6 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //     );
 //   }
 // }
+=======
+}
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3

@@ -200,7 +200,24 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7FB),
+<<<<<<< HEAD
 
+=======
+      appBar: AppBar(
+        backgroundColor: themeBlue,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const SupervisorDashboardScreen()),
+            );
+          },
+        ),
+        title: const Text("Submit Complaint", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+      ),
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       body: RefreshIndicator(
         onRefresh: _refreshData,
         child: SingleChildScrollView(

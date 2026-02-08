@@ -74,6 +74,10 @@ void initState() {
 
     super.dispose();
   }
+<<<<<<< HEAD
+=======
+
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   Future<void> _toggleUserStatus() async {
     setState(() => _isDisabling = true);
 
@@ -82,6 +86,7 @@ void initState() {
       final token = prefs.getString('token');
 
       http.Response response;
+<<<<<<< HEAD
       late Uri url;
       late String method;
 
@@ -103,6 +108,13 @@ void initState() {
       print("=================================");
 
       if (method == "PATCH") {
+=======
+
+      if (_isUserDisabled) {
+        // Enable user
+        final url =
+        Uri.parse('$apiBaseUrl/api/v1/users/${widget.user.id}/enable');
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
         response = await http.patch(
           url,
           headers: {
@@ -111,6 +123,7 @@ void initState() {
           },
         );
       } else {
+<<<<<<< HEAD
         response = await http.delete(
           url,
           headers: {
@@ -125,6 +138,16 @@ void initState() {
       print("BODY        : ${response.body}");
       print("==================================");
 
+=======
+        // Disable user (existing delete logic)
+        final url = Uri.parse('$apiBaseUrl/api/v1/users/${widget.user.id}');
+        response = await http.delete(
+          url,
+          headers: {'Authorization': 'Bearer $token'},
+        );
+      }
+
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success'] == true) {
@@ -147,18 +170,23 @@ void initState() {
       } else {
         _showError(data['message'] ?? "Failed to update user status.");
       }
+<<<<<<< HEAD
     } catch (e, stackTrace) {
       // 🔴 PRINT ERROR
       print("====== USER STATUS ERROR ======");
       print("ERROR : $e");
       print("STACK : $stackTrace");
       print("================================");
+=======
+    } catch (e) {
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
       _showError("Error occurred");
     } finally {
       if (mounted) setState(() => _isDisabling = false);
     }
   }
 
+<<<<<<< HEAD
   // Future<void> _toggleUserStatus() async {
   //   setState(() => _isDisabling = true);
   //
@@ -217,6 +245,8 @@ void initState() {
   //   }
   // }
 
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   void _showImageSourceSheet() {
     showModalBottomSheet(
       context: context,

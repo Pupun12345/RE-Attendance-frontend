@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // // lib/screens/supervisor/attendance_detail_screen.dart
 // import 'dart:convert';
 // import 'package:flutter/material.dart';
@@ -476,6 +477,8 @@
 
 
 
+=======
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
 // lib/screens/supervisor/attendance_detail_screen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -502,7 +505,11 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
   // Summary Counters
   int _presentCount = 0;
   int _absentCount = 0;
+<<<<<<< HEAD
   int _lateCount = 0;
+=======
+  int _lateCount = 0; // Note: Backend logic for 'late' needs to be defined, currently using status
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
   int _leaveCount = 0;
 
   @override
@@ -536,8 +543,13 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
     final user = jsonDecode(userString);
     final String myUserId = user['id'] ?? user['_id'];
 
+<<<<<<< HEAD
     // Date Range: Today back to 5 days ago (IST timezone)
     final now = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+=======
+    // Date Range: Today back to 5 days ago
+    final now = DateTime.now();
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
     final fiveDaysAgo = now.subtract(const Duration(days: 5));
     final dateFormat = DateFormat('yyyy-MM-dd');
 
@@ -573,12 +585,18 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
           return dateB.compareTo(dateA);
         });
 
+<<<<<<< HEAD
         // Take only last 5 days
         final last5Days = myRecords.take(5).toList();
 
         if (mounted) {
           setState(() {
             _selfAttendanceList = last5Days;
+=======
+        if (mounted) {
+          setState(() {
+            _selfAttendanceList = myRecords;
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
           });
         }
       }
@@ -635,6 +653,7 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
     }
   }
 
+<<<<<<< HEAD
   // Helper to format ISO time string to Indian Time (IST)
   String _formatTime(String? isoString) {
     if (isoString == null || isoString.isEmpty) return '--:--';
@@ -643,11 +662,19 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
       final utcTime = DateTime.parse(isoString);
       final istTime = utcTime.add(const Duration(hours: 5, minutes: 30));
       return DateFormat('hh:mm a').format(istTime);
+=======
+  // Helper to format ISO time string
+  String _formatTime(String? isoString) {
+    if (isoString == null) return '--:--';
+    try {
+      return DateFormat('hh:mm a').format(DateTime.parse(isoString));
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
     } catch (e) {
       return '--:--';
     }
   }
 
+<<<<<<< HEAD
   // Helper to format Date string to Indian Time (IST)
   String _formatDate(String? isoString) {
     if (isoString == null || isoString.isEmpty) return '';
@@ -656,6 +683,13 @@ class _AttendanceDetailScreenState extends State<AttendanceDetailScreen> {
       final utcDate = DateTime.parse(isoString);
       final istDate = utcDate.add(const Duration(hours: 5, minutes: 30));
       return DateFormat('dd MMM, yyyy').format(istDate);
+=======
+  // Helper to format Date string
+  String _formatDate(String? isoString) {
+    if (isoString == null) return '';
+    try {
+      return DateFormat('dd MMM, yyyy').format(DateTime.parse(isoString));
+>>>>>>> ec8a31b289309705c4a66d50408ea6b9770f52b3
     } catch (e) {
       return '';
     }
