@@ -314,15 +314,28 @@ class WorkerCheckInController extends GetxController {
         final file = File(imgPath);
         if (!await file.exists()) continue;
 
-        final imgBase64 = base64Encode(await file.readAsBytes());
-        final res = await http.post(
-          Uri.parse(apiSupervisorCheckinPending),
-          headers: {
-            HttpHeaders.contentTypeHeader  : 'application/json',
-            HttpHeaders.authorizationHeader: 'Bearer $token',
-          },
-          body: jsonEncode({...item, 'imageBase64': imgBase64}),
-        );
+        // Backend's checkin-pending route expects a multipart request with
+        // fields workerId/location/dateTime and an 'attendanceImage' file -
+        // matching the shape of the online check-in request below, not a
+        // plain JSON body.
+        final request =
+            http.MultipartRequest('POST', Uri.parse(apiSupervisorCheckinPending));
+        request.headers['Authorization'] = 'Bearer $token';
+        request.fields['workerId'] = (item['workerDbId'] as String?) ?? '';
+        request.fields['dateTime'] =
+            (item['createdAt'] as String?) ?? DateTime.now().toIso8601String();
+        request.fields['location'] = jsonEncode({
+          'latitude': item['lat'],
+          'longitude': item['lng'],
+          'address': item['address'],
+        });
+        request.files.add(await http.MultipartFile.fromPath(
+          'attendanceImage',
+          imgPath,
+          contentType: MediaType('image', 'jpeg'),
+        ));
+
+        final res = await http.Response.fromStream(await request.send());
 
         if (res.statusCode == 200 || res.statusCode == 201) {
           uploadedCount++;
