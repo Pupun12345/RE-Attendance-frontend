@@ -4,9 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:smartcare_app/utils/constants.dart';
 
-import '../../../constant.dart';
+import 'package:smartcare_app/utils/constants.dart';
 
 class HolidayModel {
   final String title;

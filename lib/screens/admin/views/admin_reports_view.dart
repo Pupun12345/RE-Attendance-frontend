@@ -10,7 +10,6 @@ class AdminReportsView extends StatelessWidget {
   const AdminReportsView({super.key});
 
   static const _blue      = Color(0xFF0D47A1);
-  static const _lightBlue = Color(0xFFE3F2FD);
 
   @override
   Widget build(BuildContext context) {

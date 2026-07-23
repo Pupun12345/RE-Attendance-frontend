@@ -12,9 +12,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:smartcare_app/utils/constants.dart';
 
-import '../../../constant.dart';
+import 'package:smartcare_app/utils/constants.dart';
 
 import '../login/login_view.dart'; // 👈 apna sahi path use karo
 
@@ -164,15 +163,19 @@ class SelfieCheckOutController extends GetxController {
         if (placemarks.isNotEmpty) {
           Placemark place = placemarks[0];
           List<String> parts = [];
-          if (place.subLocality?.isNotEmpty == true)
+          if (place.subLocality?.isNotEmpty == true) {
             parts.add(place.subLocality!);
+          }
           if (place.locality?.isNotEmpty == true) parts.add(place.locality!);
-          if (place.subAdministrativeArea?.isNotEmpty == true)
+          if (place.subAdministrativeArea?.isNotEmpty == true) {
             parts.add(place.subAdministrativeArea!);
-          if (place.administrativeArea?.isNotEmpty == true)
+          }
+          if (place.administrativeArea?.isNotEmpty == true) {
             parts.add(place.administrativeArea!);
-          if (place.postalCode?.isNotEmpty == true)
+          }
+          if (place.postalCode?.isNotEmpty == true) {
             parts.add(place.postalCode!);
+          }
           if (place.country?.isNotEmpty == true) parts.add(place.country!);
           _fullAddress = parts.join(", ");
           location.value =
@@ -286,7 +289,7 @@ class SelfieCheckOutController extends GetxController {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         debugPrint('========================YYYYYYYYY=======');
         Get.showSnackbar(
-          GetSnackBar(
+          const GetSnackBar(
             message: "Checked Out Successfully!",
             backgroundColor: Colors.green,
             duration: Duration(seconds: 3),

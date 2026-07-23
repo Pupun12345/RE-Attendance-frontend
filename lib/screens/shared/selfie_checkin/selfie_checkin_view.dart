@@ -39,7 +39,7 @@ class SelfieCheckInView extends GetView<SelfieCheckInController> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4))
                   ],
@@ -69,7 +69,7 @@ class SelfieCheckInView extends GetView<SelfieCheckInController> {
                             boxShadow: [
                               BoxShadow(
                                   color:
-                                      controller.themeBlue.withOpacity(0.3),
+                                      controller.themeBlue.withValues(alpha: 0.3),
                                   blurRadius: 20,
                                   offset: const Offset(0, 8))
                             ],
@@ -155,7 +155,7 @@ class SelfieCheckInView extends GetView<SelfieCheckInController> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4))
                   ],
@@ -234,7 +234,7 @@ class SelfieCheckInView extends GetView<SelfieCheckInController> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: controller.themeBlue.withOpacity(0.1),
+            color: controller.themeBlue.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: controller.themeBlue, size: 20),

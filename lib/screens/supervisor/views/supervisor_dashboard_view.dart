@@ -3,15 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:smartcare_app/screens/shared/holiday_calendar/holiday_calendar_view.dart';
-import 'package:smartcare_app/screens/shared/holiday_calendar_screen.dart';
 import 'package:smartcare_app/screens/shared/overtime_submission/overtime_submission_view.dart';
-import 'package:smartcare_app/screens/shared/overtime_submission_screen.dart';
 import 'package:smartcare_app/screens/shared/selfie_checkin/selfie_checkin_view.dart';
-import 'package:smartcare_app/screens/shared/selfie_checkin_screen.dart';
 import 'package:smartcare_app/screens/shared/selfie_checkout/selfie_checkout_view.dart';
-import 'package:smartcare_app/screens/shared/selfie_checkout_screen.dart';
 import 'package:smartcare_app/screens/shared/submit_complaint/submit_complaint_view.dart';
-import 'package:smartcare_app/screens/shared/submit_complaint_screen.dart';
 import 'package:smartcare_app/screens/supervisor/controllers/supervisor_dashboard_controller.dart';
 import 'package:smartcare_app/screens/supervisor/views/attendance_detail_view.dart';
 import 'package:smartcare_app/screens/supervisor/views/workers_view.dart';
@@ -44,7 +39,7 @@ class SupervisorDashboardView extends StatelessWidget {
             ? null
             : AppBar(
           title: Text(titles[c.selectedIndex.value],
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: themeBlue)),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: themeBlue)),
           centerTitle: true,
           backgroundColor: Colors.white,
           elevation: 1,
@@ -56,7 +51,7 @@ class SupervisorDashboardView extends StatelessWidget {
             _HomeTab(controller: c, themeBlue: themeBlue),
             const AttendanceDetailView(),
             const SubmitComplaintView(),
-            WorkersView(),
+            const WorkersView(),
             _ProfileTab(controller: c, themeBlue: themeBlue),
           ],
         ),
@@ -240,7 +235,7 @@ class _ProfileTab extends StatelessWidget {
         const SizedBox(height: 20),
         CircleAvatar(
           radius: 70,
-          backgroundColor: themeBlue.withOpacity(0.1),
+          backgroundColor: themeBlue.withValues(alpha: 0.1),
           backgroundImage: controller.profileImageUrl.value != null
               ? NetworkImage(controller.profileImageUrl.value!)
               : null,
@@ -293,7 +288,7 @@ class _DashCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),

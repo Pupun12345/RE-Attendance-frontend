@@ -13,9 +13,8 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:smartcare_app/utils/constants.dart';
 
-import '../../../constant.dart';
+import 'package:smartcare_app/utils/constants.dart';
 
 class WorkerCheckOutController extends GetxController {
   static const String _pendingCheckoutQueueKey = 'pending_checkout_queue';

@@ -11,7 +11,6 @@ class AdminOvertimeView extends StatelessWidget {
   const AdminOvertimeView({super.key});
 
   static const _blue      = Color(0xFF0D47A1);
-  static const _lightBlue = Color(0xFFE3F2FD);
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +70,7 @@ class AdminOvertimeView extends StatelessWidget {
           Obx(() {
             if (!c.isActionLoading.value) return const SizedBox.shrink();
             return Container(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               child: const Center(
                 child: CircularProgressIndicator(color: _blue),
               ),

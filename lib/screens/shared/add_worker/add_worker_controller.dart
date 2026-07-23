@@ -5,9 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:smartcare_app/utils/constants.dart';
 
-import '../../../constant.dart';
+import 'package:smartcare_app/utils/constants.dart';
 
 class AddWorkerController extends GetxController {
   final Color primaryBlue = const Color(0xFF0D47A1);

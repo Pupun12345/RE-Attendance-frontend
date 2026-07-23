@@ -13,7 +13,6 @@ import 'package:smartcare_app/screens/admin/views/admin_settings_view.dart';
 import 'package:smartcare_app/screens/admin/views/admin_summary_dashboard_view.dart';
 import 'package:smartcare_app/screens/shared/manage_users/manage_users_view.dart';
 
-import '../../shared/manage_users_screen.dart';
 
 
 class AdminDashboardView extends StatelessWidget {
@@ -28,7 +27,7 @@ class AdminDashboardView extends StatelessWidget {
 
     return Obx(() {
       final pages = [
-        _HomeTab(blue: _blue, lightBlue: _lightBlue),
+        const _HomeTab(blue: _blue, lightBlue: _lightBlue),
         const AdminSummaryDashboardView(),
         const ManageUsersView(),
         const AdminReportsView(),

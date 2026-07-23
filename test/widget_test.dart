@@ -1,30 +1,18 @@
-// // This is a basic Flutter widget test.
-// //
-// // To perform an interaction with a widget in your test, use the WidgetTester
-// // utility in the flutter_test package. For example, you can send tap and scroll
-// // gestures. You can also use WidgetTester to find child widgets in the widget
-// // tree, read text, and verify that the values of widget properties are correct.
-//
-// import 'package:flutter/material.dart';
-// import 'package:flutter_test/flutter_test.dart';
-//
-// import 'package:reattendance_admindashboard/main.dart';
-//
-// void main() {
-//   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-//     // Build our app and trigger a frame.
-//     await tester.pumpWidget(const MyApp());
-//
-//     // Verify that our counter starts at 0.
-//     expect(find.text('0'), findsOneWidget);
-//     expect(find.text('1'), findsNothing);
-//
-//     // Tap the '+' icon and trigger a frame.
-//     await tester.tap(find.byIcon(Icons.add));
-//     await tester.pump();
-//
-//     // Verify that our counter has incremented.
-//     expect(find.text('0'), findsNothing);
-//     expect(find.text('1'), findsOneWidget);
-//   });
-// }
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:smartcare_app/main.dart';
+
+void main() {
+  testWidgets('App starts on the splash screen without throwing',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.pump();
+
+    expect(find.byType(MaterialApp), findsOneWidget);
+
+    // The splash screen waits 3s before navigating away; let that finish so
+    // no timer is left pending when the test tears down the widget tree.
+    await tester.pump(const Duration(seconds: 3));
+  });
+}

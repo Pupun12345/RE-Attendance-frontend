@@ -12,9 +12,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:smartcare_app/utils/constants.dart';
 
-import '../../../constant.dart';
+import 'package:smartcare_app/utils/constants.dart';
 
 import '../login/login_view.dart'; // 👈 apna login view import karo
 
@@ -160,10 +159,12 @@ class SelfieCheckInController extends GetxController {
         List<String> parts = [];
         if (place.subLocality?.isNotEmpty == true) parts.add(place.subLocality!);
         if (place.locality?.isNotEmpty == true) parts.add(place.locality!);
-        if (place.subAdministrativeArea?.isNotEmpty == true)
+        if (place.subAdministrativeArea?.isNotEmpty == true) {
           parts.add(place.subAdministrativeArea!);
-        if (place.administrativeArea?.isNotEmpty == true)
+        }
+        if (place.administrativeArea?.isNotEmpty == true) {
           parts.add(place.administrativeArea!);
+        }
         if (place.postalCode?.isNotEmpty == true) parts.add(place.postalCode!);
         if (place.country?.isNotEmpty == true) parts.add(place.country!);
 

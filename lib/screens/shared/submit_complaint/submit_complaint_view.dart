@@ -184,7 +184,7 @@ class SubmitComplaintView extends StatelessWidget {
               return ListTile(
                 leading: CircleAvatar(
                   backgroundColor:
-                  controller.themeBlue.withOpacity(0.1),
+                  controller.themeBlue.withValues(alpha: 0.1),
                   child: Icon(Icons.person,
                       color: controller.themeBlue),
                 ),

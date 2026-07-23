@@ -116,7 +116,7 @@ class WorkerCheckOutView extends StatelessWidget {
                             boxShadow: [
                               BoxShadow(
                                 color: (isSuccess ? _green : _blue)
-                                    .withOpacity(0.15),
+                                    .withValues(alpha: 0.15),
                                 blurRadius: 20,
                                 spreadRadius: 2,
                               )
@@ -132,12 +132,12 @@ class WorkerCheckOutView extends StatelessWidget {
                               children: [
                                 Icon(Icons.camera_alt_outlined,
                                     size: 42,
-                                    color: _blue.withOpacity(0.6)),
+                                    color: _blue.withValues(alpha: 0.6)),
                                 const SizedBox(height: 6),
                                 Text('Tap to capture',
                                     style: TextStyle(
                                         fontSize: 12,
-                                        color: _blue.withOpacity(0.6))),
+                                        color: _blue.withValues(alpha: 0.6))),
                               ],
                             ),
                           ),
@@ -173,7 +173,7 @@ class WorkerCheckOutView extends StatelessWidget {
                           color: const Color(0xFFE8F5E9),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color: _green.withOpacity(0.4), width: 1),
+                              color: _green.withValues(alpha: 0.4), width: 1),
                         ),
                         child: Row(children: [
                           const Icon(Icons.check_circle_rounded,
@@ -204,7 +204,7 @@ class WorkerCheckOutView extends StatelessWidget {
                             color: const Color(0xFFFFF3E0),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                                color: _orange.withOpacity(0.4), width: 1),
+                                color: _orange.withValues(alpha: 0.4), width: 1),
                           ),
                           child: Row(children: [
                             const Icon(Icons.wifi_off_rounded,
@@ -234,7 +234,7 @@ class WorkerCheckOutView extends StatelessWidget {
               // ── Full-screen loader overlay ──
               if (isLoading)
                 Container(
-                  color: Colors.black.withOpacity(0.35),
+                  color: Colors.black.withValues(alpha: 0.35),
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -244,7 +244,7 @@ class WorkerCheckOutView extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
+                            color: Colors.black.withValues(alpha: 0.15),
                             blurRadius: 30,
                             spreadRadius: 5,
                           )
@@ -303,7 +303,7 @@ class WorkerCheckOutView extends StatelessWidget {
             btnIcon  = Icons.check_circle_rounded;
             btnLabel = 'Checked Out ✓';
           } else if (isLoading) {
-            btnColor = _blue.withOpacity(0.6);
+            btnColor = _blue.withValues(alpha: 0.6);
             btnIcon  = Icons.hourglass_top_rounded;
             btnLabel = 'Submitting...';
           } else if (isPending) {
@@ -328,7 +328,7 @@ class WorkerCheckOutView extends StatelessWidget {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 16,
                   offset: const Offset(0, -4),
                 )
@@ -339,7 +339,7 @@ class WorkerCheckOutView extends StatelessWidget {
               children: [
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Icon(Icons.location_on_rounded,
-                      size: 18, color: _blue.withOpacity(0.8)),
+                      size: 18, color: _blue.withValues(alpha: 0.8)),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(c.addressText.value,
@@ -502,7 +502,7 @@ class _InfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2))
         ],
@@ -511,7 +511,7 @@ class _InfoCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, size: 20, color: color),

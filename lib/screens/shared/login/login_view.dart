@@ -190,11 +190,11 @@ class LoginView extends GetView<LoginController> {
     Get.dialog(
       AlertDialog(
         title: const Text("User Agreement"),
-        content: SizedBox(
+        content: const SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
             child: Text(_userAgreementText,
-                style: const TextStyle(fontSize: 13)),
+                style: TextStyle(fontSize: 13)),
           ),
         ),
         actions: [
@@ -209,11 +209,11 @@ class LoginView extends GetView<LoginController> {
     Get.dialog(
       AlertDialog(
         title: const Text("Privacy Policy"),
-        content: SizedBox(
+        content: const SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
             child: Text(_privacyPolicyText,
-                style: const TextStyle(fontSize: 13)),
+                style: TextStyle(fontSize: 13)),
           ),
         ),
         actions: [

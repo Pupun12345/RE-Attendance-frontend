@@ -143,10 +143,10 @@ class ManageUsersView extends StatelessWidget {
               Container(
                 height: double.infinity,
                 width: 56,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius:
-                  const BorderRadius.horizontal(left: Radius.circular(10)),
+                  BorderRadius.horizontal(left: Radius.circular(10)),
                 ),
                 child: Center(
                     child:

@@ -70,8 +70,11 @@ class AdminSystemConfigurationController extends GetxController {
       initialTime: isStart ? startTime.value : endTime.value,
     );
     if (picked != null) {
-      if (isStart) startTime.value = picked;
-      else endTime.value = picked;
+      if (isStart) {
+        startTime.value = picked;
+      } else {
+        endTime.value = picked;
+      }
     }
   }
 

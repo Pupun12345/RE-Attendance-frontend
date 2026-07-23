@@ -39,13 +39,13 @@ class WorkerComplaintView extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
-                boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 2))],
+                boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
               ),
               child: Row(children: [
                 CircleAvatar(
                   radius: 22,
-                  backgroundColor: themeBlue.withOpacity(0.08),
-                  child: Icon(Icons.person, color: themeBlue, size: 24),
+                  backgroundColor: themeBlue.withValues(alpha: 0.08),
+                  child: const Icon(Icons.person, color: themeBlue, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -96,8 +96,8 @@ class WorkerComplaintView extends StatelessWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: controller.pickFromGallery,
-                  icon: Icon(Icons.upload, color: themeBlue),
-                  label: Text('Upload', style: TextStyle(color: themeBlue)),
+                  icon: const Icon(Icons.upload, color: themeBlue),
+                  label: const Text('Upload', style: TextStyle(color: themeBlue)),
                 ),
               ),
             ]),

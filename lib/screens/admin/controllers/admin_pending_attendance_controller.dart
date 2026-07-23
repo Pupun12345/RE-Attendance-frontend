@@ -7,9 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smartcare_app/models/pending_attendance_model.dart';
-import 'package:smartcare_app/utils/constants.dart';
 
-import '../../../constant.dart';
+import 'package:smartcare_app/utils/constants.dart';
 
 enum PendingCategory { supervisor, management, worker }
 

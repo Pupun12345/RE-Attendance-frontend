@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:smartcare_app/screens/shared/login_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../../shared/login/login_view.dart';

@@ -1,24 +1,16 @@
 // lib/screens/management/management_dashboard_screen.dart
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart'; // For location
 import 'package:get/get.dart';
-import 'dart:async'; // For timer
 import 'dart:convert'; // For jsonDecode
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smartcare_app/screens/shared/holiday_calendar/holiday_calendar_view.dart';
 import 'package:smartcare_app/screens/shared/login/login_view.dart';
 
 // ✅ --- FIXED IMPORTS ---
-import 'package:smartcare_app/screens/shared/login_screen.dart';
 import 'package:smartcare_app/screens/shared/overtime_submission/overtime_submission_view.dart';
 import 'package:smartcare_app/screens/shared/selfie_checkin/selfie_checkin_view.dart';
-import 'package:smartcare_app/screens/shared/selfie_checkin_screen.dart';
 import 'package:smartcare_app/screens/shared/selfie_checkout/selfie_checkout_view.dart';
-import 'package:smartcare_app/screens/shared/selfie_checkout_screen.dart';
 import 'package:smartcare_app/screens/shared/submit_complaint/submit_complaint_view.dart';
-import 'package:smartcare_app/screens/shared/submit_complaint_screen.dart';
-import 'package:smartcare_app/screens/shared/overtime_submission_screen.dart';
-import 'package:smartcare_app/screens/shared/holiday_calendar_screen.dart';
 import 'package:smartcare_app/screens/management/attendance_overview_screen.dart';
 // ✅ --- END OF FIX ---
 
@@ -42,8 +34,6 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   String _userPhone = "1234567890";
   String? _profileImageUrl;
   bool _isLoadingProfile = true;
-  String _location = "Fetching location...";
-  String _currentStatus = "Checked In (09:00 AM)";
   // ---
 
   late final List<Widget> _screens;
@@ -51,8 +41,6 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchLocation();
-    _startStatusTimer();
     _loadUserData();
   }
 
@@ -85,54 +73,6 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
     });
   }
 
-  // --- (Copy/Paste _fetchLocation and _startStatusTimer from Supervisor Dashboard) ---
-  void _startStatusTimer() {
-    Timer.periodic(const Duration(minutes: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() {
-        _currentStatus = DateTime.now().minute % 2 == 0
-            ? "Checked In (${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')})"
-            : "Checked Out (${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')})";
-      });
-    });
-  }
-
-  Future<void> _fetchLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      setState(() {
-        _location = "GPS not enabled";
-      });
-      return;
-    }
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        setState(() {
-          _location = "Location permission denied";
-        });
-        return;
-      }
-    }
-    if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        _location = "Location permission permanently denied";
-      });
-      return;
-    }
-    final Position position = await Geolocator.getCurrentPosition();
-    if (!mounted) return;
-    setState(() {
-      _location =
-          "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
-    });
-  }
-  // ---
-
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
@@ -143,7 +83,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     // Titles for the AppBar
-    final List<String> _titles = [
+    final List<String> titles = [
       "Management Dashboard",
       "Attendance Overview",
       "Submit Complaint",
@@ -154,7 +94,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
       appBar: AppBar(
         backgroundColor: themeBlue,
         title: Text(
-          _titles[_selectedIndex], // Use dynamic title
+          titles[_selectedIndex], // Use dynamic title
           style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
         ),
         elevation: 0,
@@ -375,7 +315,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () {
                        // Navigate to SHARED screen
-                       Navigator.push(context, MaterialPageRoute(builder: (context) => HolidayCalendarView()));
+                       Navigator.push(context, MaterialPageRoute(builder: (context) => const HolidayCalendarView()));
                     },
                     icon: const Icon(Icons.calendar_month_outlined, color: Colors.white),
                     label: const Text("View Calendar", style: TextStyle(color: Colors.white)),
@@ -404,7 +344,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           const SizedBox(height: 20),
           CircleAvatar(
             radius: 70,
-            backgroundColor: themeBlue.withOpacity(0.1),
+            backgroundColor: themeBlue.withValues(alpha: 0.1),
             backgroundImage: _profileImageUrl != null
                 ? NetworkImage(_profileImageUrl!)
                 : null,
@@ -544,12 +484,6 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 // import 'package:intl/intl.dart';
 // import 'package:http/http.dart' as http;
 //
-// import 'package:smartcare_app/screens/shared/login_screen.dart';
-// import 'package:smartcare_app/screens/shared/selfie_checkin_screen.dart';
-// import 'package:smartcare_app/screens/shared/selfie_checkout_screen.dart';
-// import 'package:smartcare_app/screens/shared/submit_complaint_screen.dart';
-// import 'package:smartcare_app/screens/shared/overtime_submission_screen.dart';
-// import 'package:smartcare_app/screens/shared/holiday_calendar_screen.dart';
 // import 'package:smartcare_app/screens/management/attendance_overview_screen.dart';
 // import 'package:smartcare_app/utils/constants.dart';
 //
@@ -955,7 +889,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //         flexibleSpace: Container(
 //           decoration: BoxDecoration(
 //             gradient: LinearGradient(
-//               colors: [themeBlue, themeBlue.withOpacity(0.85)],
+//               colors: [themeBlue, themeBlue.withValues(alpha: 0.85)],
 //               begin: Alignment.topLeft,
 //               end: Alignment.bottomRight,
 //             ),
@@ -978,7 +912,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //           color: Colors.white,
 //           boxShadow: [
 //             BoxShadow(
-//               color: Colors.black.withOpacity(0.08),
+//               color: Colors.black.withValues(alpha: 0.08),
 //               blurRadius: 20,
 //               offset: const Offset(0, -4),
 //             ),
@@ -1024,7 +958,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //           vertical: 8,
 //         ),
 //         decoration: BoxDecoration(
-//           color: isSelected ? themeBlue.withOpacity(0.1) : Colors.transparent,
+//           color: isSelected ? themeBlue.withValues(alpha: 0.1) : Colors.transparent,
 //           borderRadius: BorderRadius.circular(12),
 //         ),
 //         child: Column(
@@ -1060,7 +994,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //             begin: Alignment.topCenter,
 //             end: Alignment.bottomCenter,
 //             colors: [
-//               lightBlue.withOpacity(0.3),
+//               lightBlue.withValues(alpha: 0.3),
 //               Colors.white,
 //             ],
 //           ),
@@ -1076,14 +1010,14 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //                 padding: const EdgeInsets.all(20),
 //                 decoration: BoxDecoration(
 //                   gradient: LinearGradient(
-//                     colors: [themeBlue, themeBlue.withOpacity(0.8)],
+//                     colors: [themeBlue, themeBlue.withValues(alpha: 0.8)],
 //                     begin: Alignment.topLeft,
 //                     end: Alignment.bottomRight,
 //                   ),
 //                   borderRadius: BorderRadius.circular(20),
 //                   boxShadow: [
 //                     BoxShadow(
-//                       color: themeBlue.withOpacity(0.3),
+//                       color: themeBlue.withValues(alpha: 0.3),
 //                       blurRadius: 20,
 //                       offset: const Offset(0, 10),
 //                     ),
@@ -1093,7 +1027,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //                   children: [
 //                     CircleAvatar(
 //                       radius: 32,
-//                       backgroundColor: Colors.white.withOpacity(0.2),
+//                       backgroundColor: Colors.white.withValues(alpha: 0.2),
 //                       backgroundImage: _profileImageUrl != null
 //                           ? NetworkImage(_profileImageUrl!)
 //                           : null,
@@ -1110,7 +1044,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //                           Text(
 //                             "Welcome back,",
 //                             style: TextStyle(
-//                               color: Colors.white.withOpacity(0.9),
+//                               color: Colors.white.withValues(alpha: 0.9),
 //                               fontSize: 14,
 //                               fontWeight: FontWeight.w500,
 //                             ),
@@ -1129,7 +1063,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //                           Text(
 //                             _userId,
 //                             style: TextStyle(
-//                               color: Colors.white.withOpacity(0.8),
+//                               color: Colors.white.withValues(alpha: 0.8),
 //                               fontSize: 13,
 //                               fontWeight: FontWeight.w500,
 //                             ),
@@ -1140,7 +1074,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //                     Container(
 //                       padding: const EdgeInsets.all(12),
 //                       decoration: BoxDecoration(
-//                         color: Colors.white.withOpacity(0.2),
+//                         color: Colors.white.withValues(alpha: 0.2),
 //                         borderRadius: BorderRadius.circular(12),
 //                       ),
 //                       child: const Icon(
@@ -1287,7 +1221,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //         borderRadius: BorderRadius.circular(20),
 //         boxShadow: [
 //           BoxShadow(
-//             color: Colors.black.withOpacity(0.06),
+//             color: Colors.black.withValues(alpha: 0.06),
 //             blurRadius: 20,
 //             offset: const Offset(0, 4),
 //           ),
@@ -1310,7 +1244,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //                 Container(
 //                   padding: const EdgeInsets.all(10),
 //                   decoration: BoxDecoration(
-//                     color: Colors.white.withOpacity(0.2),
+//                     color: Colors.white.withValues(alpha: 0.2),
 //                     borderRadius: BorderRadius.circular(12),
 //                   ),
 //                   child: Icon(icon, color: Colors.white, size: 24),
@@ -1429,7 +1363,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //           borderRadius: BorderRadius.circular(16),
 //           boxShadow: [
 //             BoxShadow(
-//               color: Colors.black.withOpacity(0.06),
+//               color: Colors.black.withValues(alpha: 0.06),
 //               blurRadius: 12,
 //               offset: const Offset(0, 4),
 //             ),
@@ -1441,7 +1375,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //             Container(
 //               padding: const EdgeInsets.all(12),
 //               decoration: BoxDecoration(
-//                 color: color.withOpacity(0.1),
+//                 color: color.withValues(alpha: 0.1),
 //                 borderRadius: BorderRadius.circular(12),
 //               ),
 //               child: Icon(icon, color: color, size: 28),
@@ -1477,7 +1411,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //           begin: Alignment.topCenter,
 //           end: Alignment.bottomCenter,
 //           colors: [
-//             lightBlue.withOpacity(0.3),
+//             lightBlue.withValues(alpha: 0.3),
 //             Colors.white,
 //           ],
 //         ),
@@ -1588,7 +1522,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //                 borderRadius: BorderRadius.circular(16),
 //                 boxShadow: [
 //                   BoxShadow(
-//                     color: Colors.red.withOpacity(0.3),
+//                     color: Colors.red.withValues(alpha: 0.3),
 //                     blurRadius: 12,
 //                     offset: const Offset(0, 6),
 //                   ),
@@ -1642,7 +1576,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //         borderRadius: BorderRadius.circular(16),
 //         boxShadow: [
 //           BoxShadow(
-//             color: Colors.black.withOpacity(0.05),
+//             color: Colors.black.withValues(alpha: 0.05),
 //             blurRadius: 12,
 //             offset: const Offset(0, 4),
 //           ),
@@ -1653,7 +1587,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 //           Container(
 //             padding: const EdgeInsets.all(12),
 //             decoration: BoxDecoration(
-//               color: color.withOpacity(0.1),
+//               color: color.withValues(alpha: 0.1),
 //               borderRadius: BorderRadius.circular(12),
 //             ),
 //             child: Icon(icon, color: color, size: 24),

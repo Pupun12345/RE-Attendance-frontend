@@ -8,8 +8,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:smartcare_app/utils/constants.dart';
 
-import '../../constant.dart';
-
 // 1. Model for attendance data
 class AttendanceRecord {
   final String id;
@@ -242,7 +240,7 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
         }
       }
     } catch (e) {
-      print('Error loading today attendance: $e');
+      debugPrint('Error loading today attendance: $e');
     }
   }
 
@@ -371,14 +369,14 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [themeBlue, themeBlue.withOpacity(0.8)],
+          colors: [themeBlue, themeBlue.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: themeBlue.withOpacity(0.3),
+            color: themeBlue.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -392,7 +390,7 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -448,7 +446,7 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, size: 20, color: Colors.white),
@@ -462,7 +460,7 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -573,7 +571,7 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -597,7 +595,7 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
                       width: 60,
                       height: 60,
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -615,7 +613,7 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
                             DateFormat('MMM').format(item.date),
                             style: TextStyle(
                               fontSize: 12,
-                              color: statusColor.withOpacity(0.7),
+                              color: statusColor.withValues(alpha: 0.7),
                             ),
                           ),
                         ],

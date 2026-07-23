@@ -31,14 +31,14 @@ class WorkerProfileView extends StatelessWidget {
         child: Column(children: [
           // Check-In / Check-Out card
           _Card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Worker Profile',
+            const Text('Worker Profile',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: themeBlue)),
             const SizedBox(height: 12),
             Row(children: [
               CircleAvatar(
                 radius: 22,
-                backgroundColor: themeBlue.withOpacity(0.08),
-                child: Icon(Icons.person, color: themeBlue, size: 24),
+                backgroundColor: themeBlue.withValues(alpha: 0.08),
+                child: const Icon(Icons.person, color: themeBlue, size: 24),
               ),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -61,7 +61,7 @@ class WorkerProfileView extends StatelessWidget {
 
           // Complaint card
           _Card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Submit Complaint',
+            const Text('Submit Complaint',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: themeBlue)),
             const SizedBox(height: 8),
             const Text('If the worker has any issue related to work, safety or attendance, you can submit a complaint on their behalf.',
@@ -103,7 +103,7 @@ class _Card extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: child,
     );

@@ -69,9 +69,9 @@ class AttendanceDetailView extends StatelessWidget {
             ),
 
             // ── Section Header: Self Attendance ───────────────────────
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
+                padding: EdgeInsets.fromLTRB(16, 24, 16, 10),
                 child: Text(
                   'Self Attendance (Last 30 Days)',
                   style: TextStyle(
@@ -209,7 +209,7 @@ class _StatCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
-            BoxShadow(color: Colors.grey.withOpacity(0.15), blurRadius: 6)
+            BoxShadow(color: Colors.grey.withValues(alpha: 0.15), blurRadius: 6)
           ],
         ),
         child: Column(children: [
@@ -262,7 +262,7 @@ class _SelfAttendanceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
+              color: Colors.grey.withValues(alpha: 0.08),
               blurRadius: 4,
               offset: const Offset(0, 2))
         ],
@@ -306,7 +306,7 @@ class _EmployeeTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
+              color: Colors.grey.withValues(alpha: 0.08),
               blurRadius: 4,
               offset: const Offset(0, 2))
         ],
@@ -314,9 +314,9 @@ class _EmployeeTile extends StatelessWidget {
       child: Row(children: [
         CircleAvatar(
           radius: 18,
-          backgroundColor: themeBlue.withOpacity(0.1),
+          backgroundColor: themeBlue.withValues(alpha: 0.1),
           backgroundImage: hasImage
-              ? CachedNetworkImageProvider(imageUrl!)
+              ? CachedNetworkImageProvider(imageUrl)
               : null,
           child: !hasImage
               ? Icon(Icons.person, size: 20, color: themeBlue)
@@ -360,7 +360,7 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-          color: c.withOpacity(0.15),
+          color: c.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(8)),
       child: Text(
         status.toUpperCase(),
@@ -393,12 +393,12 @@ class _FilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? (color ?? Colors.blue)
-              : (color ?? Colors.blue).withOpacity(0.1),
+              : (color ?? Colors.blue).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
                 ? (color ?? Colors.blue)
-                : (color ?? Colors.blue).withOpacity(0.3),
+                : (color ?? Colors.blue).withValues(alpha: 0.3),
             width: 1,
           ),
         ),

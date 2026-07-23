@@ -86,7 +86,7 @@ class _WorkerRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.12), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.12), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Row(
         children: [

@@ -6,9 +6,8 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smartcare_app/models/overtime_model.dart';
-import 'package:smartcare_app/utils/constants.dart';
 
-import '../../../constant.dart';
+import 'package:smartcare_app/utils/constants.dart';
 
 class AdminOvertimeController extends GetxController
     with GetTickerProviderStateMixin {

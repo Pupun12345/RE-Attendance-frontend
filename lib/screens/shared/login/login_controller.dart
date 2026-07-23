@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:smartcare_app/utils/constants.dart';
 import 'package:smartcare_app/screens/admin/views/admin_dashboard_view.dart';
 import 'package:smartcare_app/screens/supervisor/views/supervisor_dashboard_view.dart';
 import 'package:smartcare_app/screens/management/management_dashboard_screen.dart';
 
-import '../../../constant.dart';
+import 'package:smartcare_app/utils/constants.dart';
 
 class LoginController extends GetxController {
   final Color primaryBlue = const Color(0xFF0D47A1);
@@ -82,7 +81,7 @@ class LoginController extends GetxController {
             backgroundColor: Colors.redAccent, colorText: Colors.white);
       }
     } catch (e) {
-      print("this is errror$e");
+      debugPrint("Login error: $e");
       Get.snackbar("Error", "Could not connect to server. Check your API URL.",
           backgroundColor: Colors.redAccent, colorText: Colors.white);
     } finally {

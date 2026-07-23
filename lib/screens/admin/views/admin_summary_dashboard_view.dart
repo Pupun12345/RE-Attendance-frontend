@@ -10,7 +10,6 @@ class AdminSummaryDashboardView extends StatelessWidget {
   const AdminSummaryDashboardView({super.key});
 
   static const _blue      = Color(0xFF0D47A1);
-  static const _lightBlue = Color(0xFFE3F2FD);
   static const _bg        = Color(0xFFF5F5F5);
 
   @override

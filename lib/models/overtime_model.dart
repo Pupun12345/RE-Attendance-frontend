@@ -1,5 +1,4 @@
 // lib/models/overtime_model.dart
-import 'package:flutter/material.dart';
 
 // This model handles the 'user' object nested inside the overtime record
 class OvertimeUser {

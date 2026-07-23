@@ -6,9 +6,8 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:smartcare_app/utils/constants.dart';
 
-import '../../../constant.dart';
+import 'package:smartcare_app/utils/constants.dart';
 
 class AttendanceDetailController extends GetxController {
   final isLoading = true.obs;
@@ -105,10 +104,15 @@ class AttendanceDetailController extends GetxController {
         int present = 0, absent = 0, leave = 0, late = 0;
         for (var emp in employees) {
           final status = (emp['status'] ?? 'absent').toString().toLowerCase();
-          if (status == 'present') present++;
-          else if (status == 'absent') absent++;
-          else if (status == 'leave') leave++;
-          else if (status == 'late') late++;
+          if (status == 'present') {
+            present++;
+          } else if (status == 'absent') {
+            absent++;
+          } else if (status == 'leave') {
+            leave++;
+          } else if (status == 'late') {
+            late++;
+          }
         }
 
         employeeList.value = employees;
