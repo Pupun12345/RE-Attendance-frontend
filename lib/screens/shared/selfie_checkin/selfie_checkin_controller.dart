@@ -25,7 +25,10 @@ class SelfieCheckInController extends GetxController {
 
   String _fullAddress = '';
   Position? _currentPosition;
-  String _userName = 'Unknown';
+  // .obs so the "Employee" label updates once _loadUserData() resolves -
+  // it's read from SharedPreferences asynchronously, so the very first
+  // build always happens before it's ready.
+  final userName = 'Loading...'.obs;
 
   Timer? _dateTimer;
 
@@ -62,10 +65,8 @@ class SelfieCheckInController extends GetxController {
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    _userName = prefs.getString('userName') ?? 'Unknown';
+    userName.value = prefs.getString('userName') ?? 'Unknown';
   }
-
-  String get userName => _userName;
 
   Future<void> _fetchLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();

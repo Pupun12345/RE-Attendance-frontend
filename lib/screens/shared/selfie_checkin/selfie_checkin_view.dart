@@ -49,8 +49,8 @@ class SelfieCheckInView extends GetView<SelfieCheckInController> {
                     Obx(() => _buildInfoRow(
                         Icons.access_time, "Time", controller.dateTime.value)),
                     const Divider(height: 24),
-                    _buildInfoRow(
-                        Icons.person_outline, "Employee", controller.userName),
+                    Obx(() => _buildInfoRow(
+                        Icons.person_outline, "Employee", controller.userName.value)),
                   ],
                 ),
               ),

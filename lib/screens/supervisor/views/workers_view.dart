@@ -11,7 +11,15 @@ class WorkersView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(WorkersController());
+    // permanent: true keeps this controller (and its search TextField's
+    // TextEditingController) alive instead of letting GetX auto-dispose it
+    // when the route is popped - that auto-dispose could race with an
+    // in-flight tap on this screen's TextField during the pop transition
+    // and crash with "used after being disposed". Since the controller no
+    // longer resets itself on re-entry, explicitly refresh the list here.
+    final isFirstBuild = !Get.isRegistered<WorkersController>();
+    final controller = Get.put(WorkersController(), permanent: true);
+    if (!isFirstBuild) controller.fetchWorkers();
     if (initialSearchQuery != null) controller.setInitialQuery(initialSearchQuery);
     const themeBlue = Color(0xFF0B3B8C);
 
