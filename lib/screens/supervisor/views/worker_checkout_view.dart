@@ -19,7 +19,6 @@ class WorkerCheckOutView extends StatelessWidget {
   static const _blue      = Color(0xFF0B3B8C);
   static const _lightBlue = Color(0xFFE8F0FE);
   static const _green     = Color(0xFF1B8A4A);
-  static const _orange    = Color(0xFFE65100);
 
   @override
   Widget build(BuildContext context) {
@@ -47,8 +46,6 @@ class WorkerCheckOutView extends StatelessWidget {
           final hasImage  = c.lastCapturedImage.value != null;
           final isLoading = c.isCheckingOut.value;
           final isSuccess = c.checkOutSuccess.value;
-          final isPending = c.isPending.value;
-          final secs      = c.pendingSecondsLeft.value;
 
           return Stack(
             children: [
@@ -97,7 +94,7 @@ class WorkerCheckOutView extends StatelessWidget {
                     // ── Photo Section ──
                     Center(
                       child: GestureDetector(
-                        onTap: (isLoading || isSuccess || isPending)
+                        onTap: (isLoading || isSuccess)
                             ? null
                             : c.openCamera,
                         child: AnimatedContainer(
@@ -148,8 +145,7 @@ class WorkerCheckOutView extends StatelessWidget {
                     // ── Retake option ──
                     if (hasImage &&
                         !isLoading &&
-                        !isSuccess &&
-                        !isPending) ...[
+                        !isSuccess) ...[
                       const SizedBox(height: 12),
                       Center(
                         child: TextButton.icon(
@@ -189,42 +185,6 @@ class WorkerCheckOutView extends StatelessWidget {
                             ),
                           ),
                         ]),
-                      ),
-                    ],
-
-                    // ── Pending Banner ──
-                    if (isPending) ...[
-                      const SizedBox(height: 12),
-                      GestureDetector(
-                        onTap: () => _showPendingDetails(c),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF3E0),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: _orange.withValues(alpha: 0.4), width: 1),
-                          ),
-                          child: Row(children: [
-                            const Icon(Icons.wifi_off_rounded,
-                                color: _orange, size: 24),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                secs > 0
-                                    ? 'No internet. Retrying in ${secs}s... (tap for details)'
-                                    : 'Waiting for network to sync. (tap for details)',
-                                style: const TextStyle(
-                                    color: _orange,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13),
-                              ),
-                            ),
-                            const Icon(Icons.chevron_right_rounded,
-                                color: _orange, size: 20),
-                          ]),
-                        ),
                       ),
                     ],
                   ],
@@ -289,10 +249,8 @@ class WorkerCheckOutView extends StatelessWidget {
           final hasImage  = c.lastCapturedImage.value != null;
           final isLoading = c.isCheckingOut.value;
           final isSuccess = c.checkOutSuccess.value;
-          final isPending = c.isPending.value;
-          final secs      = c.pendingSecondsLeft.value;
 
-          final bool isDisabled = isLoading || isSuccess || isPending;
+          final bool isDisabled = isLoading || isSuccess;
 
           Color btnColor;
           IconData btnIcon;
@@ -306,12 +264,6 @@ class WorkerCheckOutView extends StatelessWidget {
             btnColor = _blue.withValues(alpha: 0.6);
             btnIcon  = Icons.hourglass_top_rounded;
             btnLabel = 'Submitting...';
-          } else if (isPending) {
-            btnColor = _orange;
-            btnIcon  = Icons.hourglass_bottom_rounded;
-            btnLabel = secs > 0
-                ? 'Pending (${secs}s)'
-                : 'Pending – Waiting for network';
           } else if (hasImage) {
             btnColor = _blue;
             btnIcon  = Icons.logout_rounded;
@@ -412,77 +364,6 @@ class WorkerCheckOutView extends StatelessWidget {
     );
   }
 
-  // ── Pending Details Dialog ─────────────────────────────────
-  void _showPendingDetails(WorkerCheckOutController c) {
-    Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Obx(() => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _lightBlue,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.wifi_off_rounded,
-                      color: _orange, size: 20),
-                ),
-                const SizedBox(width: 10),
-                const Text('Pending Check-Out',
-                    style: TextStyle(
-                        color: _blue,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16)),
-              ]),
-              const SizedBox(height: 16),
-              if (c.pendingImage.value != null)
-                CircleAvatar(
-                  radius: 55,
-                  backgroundImage: FileImage(c.pendingImage.value!),
-                ),
-              const SizedBox(height: 14),
-              _dialogRow(Icons.badge_outlined,
-                  '$workerName ($workerId)'),
-              const SizedBox(height: 8),
-              _dialogRow(Icons.access_time_rounded,
-                  c.pendingTime.value ?? c.timeString.value),
-              const SizedBox(height: 8),
-              _dialogRow(Icons.location_on_outlined,
-                  c.pendingAddress.value ?? c.addressText.value),
-              const SizedBox(height: 6),
-              _dialogRow(Icons.gps_fixed_rounded,
-                  c.pendingLocation.value ?? c.locationText.value),
-              const SizedBox(height: 18),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Get.back(),
-                  child: const Text('Close',
-                      style: TextStyle(color: _blue)),
-                ),
-              ),
-            ],
-          )),
-        ),
-      ),
-    );
-  }
-
-  Widget _dialogRow(IconData icon, String text) {
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Icon(icon, size: 18, color: Colors.grey.shade600),
-      const SizedBox(width: 8),
-      Expanded(
-          child: Text(text,
-              style: const TextStyle(
-                  fontSize: 13, color: Color(0xFF333333)))),
-    ]);
-  }
 }
 
 // ── Reusable Info Card ─────────────────────────────────────────────────────

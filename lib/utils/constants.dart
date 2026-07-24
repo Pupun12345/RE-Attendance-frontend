@@ -32,18 +32,12 @@ String apiUserEnable(String id) => '$_api/users/$id/enable';
 const String apiWorkers = '$_api/users?role=worker';
 
 // ── Attendance endpoints ─────────────────────────────────────
-const String apiAttendancePending = '$_api/attendance/pending';
 const String apiAttendanceSummaryToday = '$_api/attendance/summary/today';
 const String apiAttendanceStatusToday = '$_api/attendance/status/today';
 const String apiCheckin = '$_api/attendance/checkin';
-const String apiCheckinPending = '$_api/attendance/checkin-pending';
 const String apiCheckout = '$_api/attendance/checkout';
-const String apiCheckoutPending = '$_api/attendance/checkout-pending';
 const String apiSupervisorCheckin = '$_api/attendance/supervisor/checkin';
-const String apiSupervisorCheckinPending = '$_api/attendance/supervisor/checkin-pending';
 const String apiSupervisorCheckout = '$_api/attendance/supervisor/checkout';
-const String apiSupervisorCheckoutPending = '$_api/attendance/supervisor/checkout-pending';
-String apiAttendanceAction(String id, String action) => '$_api/attendance/$id/$action';
 
 // ── Reports endpoints ────────────────────────────────────────
 const String apiReportsAttendanceDaily = '$_api/reports/attendance/daily';

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:smartcare_app/screens/admin/controllers/admin_summary_dashboard_controller.dart';
-import 'package:smartcare_app/screens/admin/views/admin_pending_attendance_view.dart';
 
 class AdminSummaryDashboardView extends StatelessWidget {
   const AdminSummaryDashboardView({super.key});
@@ -70,10 +69,6 @@ class AdminSummaryDashboardView extends StatelessWidget {
               _AttendanceCard(
                   present: c.presentToday.value,
                   absent: c.absentToday.value),
-              const SizedBox(height: 16),
-
-              // Pending Attendance
-              _PendingCard(),
             ]),
           ),
         );
@@ -195,43 +190,5 @@ class _StatItem extends StatelessWidget {
             style: const TextStyle(color: Colors.black54, fontSize: 13)),
       ]),
     ]);
-  }
-}
-
-// ─── Pending Card ──────────────────────────────────────────────────────────
-
-class _PendingCard extends StatelessWidget {
-  static const _blue      = Color(0xFF0D47A1);
-  static const _lightBlue = Color(0xFFE3F2FD);
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => Get.to(() => const AdminPendingAttendanceView()),
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 3,
-        color: Colors.white,
-        child: Padding(
-          padding:
-              const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-          child: Row(children: [
-            const CircleAvatar(
-                radius: 22,
-                backgroundColor: _lightBlue,
-                child: Icon(LucideIcons.clock, color: _blue, size: 24)),
-            const SizedBox(width: 14),
-            const Expanded(
-                child: Text('Pending Attendance',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: _blue))),
-            Icon(Icons.arrow_forward_ios,
-                size: 18, color: Colors.grey.shade500),
-          ]),
-        ),
-      ),
-    );
   }
 }

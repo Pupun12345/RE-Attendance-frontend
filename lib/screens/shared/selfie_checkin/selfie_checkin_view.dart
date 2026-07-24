@@ -95,53 +95,6 @@ class SelfieCheckInView extends GetView<SelfieCheckInController> {
                             size: 60, color: Colors.grey[400]),
                       );
                     }),
-                    Obx(() {
-                      if (!controller.isRetrying.value) {
-                        return const SizedBox.shrink();
-                      }
-                      return Container(
-                        margin: const EdgeInsets.only(top: 24),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.orange[50],
-                          borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: Colors.orange, width: 1),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.sync,
-                                    color: Colors.orange, size: 20),
-                                const SizedBox(width: 8),
-                                Obx(() => Text(
-                                      "Retrying... ${60 - controller.retrySeconds.value}s",
-                                      style: const TextStyle(
-                                          color: Colors.orange,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16),
-                                    )),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Obx(() => ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: LinearProgressIndicator(
-                                    value:
-                                        controller.retrySeconds.value / 60,
-                                    backgroundColor: Colors.orange[100],
-                                    valueColor:
-                                        const AlwaysStoppedAnimation<Color>(
-                                            Colors.orange),
-                                    minHeight: 8,
-                                  ),
-                                )),
-                          ],
-                        ),
-                      );
-                    }),
                   ],
                 ),
               ),
@@ -178,19 +131,15 @@ class SelfieCheckInView extends GetView<SelfieCheckInController> {
                 height: 56,
                 child: Obx(() {
                   final loading = controller.isLoading.value;
-                  final retrying = controller.isRetrying.value;
-                  final isPending = controller.isPendingMode.value;
                   final hasImage = controller.selfieImage.value != null;
 
-                  IconData icon = isPending
-                      ? Icons.sync
-                      : (hasImage ? Icons.check_circle : Icons.camera_alt);
-                  String label = isPending
-                      ? "Retry Sync"
-                      : (hasImage ? "Confirm Check-In" : "Take Selfie");
+                  IconData icon =
+                      hasImage ? Icons.check_circle : Icons.camera_alt;
+                  String label =
+                      hasImage ? "Confirm Check-In" : "Take Selfie";
 
                   return ElevatedButton(
-                    onPressed: loading || retrying
+                    onPressed: loading
                         ? null
                         : controller.onButtonPressed,
                     style: ElevatedButton.styleFrom(
@@ -198,7 +147,7 @@ class SelfieCheckInView extends GetView<SelfieCheckInController> {
                       disabledBackgroundColor: Colors.grey[300],
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16)),
-                      elevation: loading || retrying ? 0 : 4,
+                      elevation: loading ? 0 : 4,
                     ),
                     child: loading
                         ? const SizedBox(

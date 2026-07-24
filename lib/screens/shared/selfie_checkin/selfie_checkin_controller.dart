@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
@@ -9,8 +8,6 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:smartcare_app/utils/constants.dart';
@@ -25,17 +22,12 @@ class SelfieCheckInController extends GetxController {
   final coordsText = 'Fetching coordinates...'.obs;
   final selfieImage = Rxn<File>();
   final isLoading = false.obs;
-  final isPendingMode = false.obs;
-  final isRetrying = false.obs;
-  final retrySeconds = 0.obs;
 
   String _fullAddress = '';
   Position? _currentPosition;
   String _userName = 'Unknown';
 
-  Timer? _retryTimer;
   Timer? _dateTimer;
-  StreamSubscription? _connectivitySub;
 
   @override
   void onInit() {
@@ -43,22 +35,11 @@ class SelfieCheckInController extends GetxController {
     _startDateTimer();
     _fetchLocation();
     _loadUserData();
-    _checkPendingData();
-    _checkConnectivityAndSync();
-    _connectivitySub = Connectivity()
-        .onConnectivityChanged
-        .listen((List<ConnectivityResult> results) {
-      if (results.any((r) => r != ConnectivityResult.none)) {
-        _attemptSync();
-      }
-    });
   }
 
   @override
   void onClose() {
-    _retryTimer?.cancel();
     _dateTimer?.cancel();
-    _connectivitySub?.cancel();
     super.onClose();
   }
 
@@ -85,47 +66,6 @@ class SelfieCheckInController extends GetxController {
   }
 
   String get userName => _userName;
-
-  Future<void> _checkPendingData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final pending = prefs.getString("pending_checkin");
-    if (pending != null) {
-      final jsonData = jsonDecode(pending);
-      bool needsAdmin = jsonData['needsAdminApproval'] ?? false;
-      isPendingMode.value = true;
-      selfieImage.value = File(jsonData['imagePath']);
-      coordsText.value =
-      "Lat: ${jsonData['lat']}, Lng: ${jsonData['lng']}";
-      location.value = jsonData['location'];
-      _fullAddress = jsonData['fullAddress'] ?? '';
-      dateTime.value = jsonData['displayTime'] ?? 'Pending Time';
-      if (needsAdmin) retrySeconds.value = 60;
-    }
-  }
-
-  Future<void> _checkConnectivityAndSync() async {
-    final results = await Connectivity().checkConnectivity();
-    if (results.any((r) => r != ConnectivityResult.none)) {
-      _attemptSync();
-    }
-  }
-
-  Future<void> _attemptSync() async {
-    if (!isPendingMode.value) return;
-    final prefs = await SharedPreferences.getInstance();
-    final pending = prefs.getString("pending_checkin");
-    if (pending == null) return;
-    final pendingData = jsonDecode(pending);
-    await _uploadData(
-      img: File(pendingData['imagePath']),
-      lat: pendingData['lat'],
-      lng: pendingData['lng'],
-      address: pendingData['fullAddress'] ?? '',
-      dt: pendingData['dateTime'],
-      isRetry: true,
-      sendToAdminQueue: pendingData['needsAdminApproval'] ?? false,
-    );
-  }
 
   Future<void> _fetchLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -206,65 +146,29 @@ class SelfieCheckInController extends GetxController {
       return;
     }
 
-    await _uploadData(
-      img: selfieImage.value!,
-      lat: _currentPosition!.latitude,
-      lng: _currentPosition!.longitude,
-      address: _fullAddress,
-      dt: '',
-      isRetry: false,
-      sendToAdminQueue: false,
-    );
-  }
-
-  // ✅ Logout method — data clear karke login par bhejo
-  Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    Get.offAll(() => const LoginView());
-  }
-
-  Future<void> _uploadData({
-    required File img,
-    required double lat,
-    required double lng,
-    required String address,
-    required String dt,
-    required bool isRetry,
-    required bool sendToAdminQueue,
-  }) async {
     isLoading.value = true;
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("token");
-      final endpoint = sendToAdminQueue
-          ? "$apiBaseUrl/api/v1/attendance/checkin-pending"
-          : "$apiBaseUrl/api/v1/attendance/checkin";
 
-      var request = http.MultipartRequest('POST', Uri.parse(endpoint));
+      var request =
+          http.MultipartRequest('POST', Uri.parse(apiCheckin));
       request.headers["Authorization"] = "Bearer $token";
       request.fields["location"] =
-      address.isNotEmpty ? address : "$lat,$lng";
-      request.fields["latitude"] = lat.toString();
-      request.fields["longitude"] = lng.toString();
-      request.fields["dateTime"] =
-      isRetry ? dt : DateTime.now().toIso8601String();
+      _fullAddress.isNotEmpty ? _fullAddress : "${_currentPosition!.latitude},${_currentPosition!.longitude}";
+      request.fields["latitude"] = _currentPosition!.latitude.toString();
+      request.fields["longitude"] = _currentPosition!.longitude.toString();
+      request.fields["dateTime"] = DateTime.now().toIso8601String();
       request.files.add(await http.MultipartFile.fromPath(
         'attendanceImage',
-        img.path,
+        selfieImage.value!.path,
         contentType: MediaType("image", "jpeg"),
       ));
 
       final resp = await request.send();
       final res = await http.Response.fromStream(resp);
 
-      // ✅ Success response from backend (any 2xx code)
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        // _retryTimer?.cancel();
-        // await prefs.remove("pending_checkin");
-        // isPendingMode.value = false;
-        // isRetrying.value = false;
-
         Get.showSnackbar(
           const GetSnackBar(
             message: "Checked In Successfully!",
@@ -273,15 +177,9 @@ class SelfieCheckInController extends GetxController {
             snackPosition: SnackPosition.BOTTOM,
           ),
         );
-
-
-        // ✅ 401 — Unauthorized, logout karke login par bhejo
       } else if (res.statusCode == 401) {
         await logout();
-
-        // ✅ Other errors
       } else {
-        _retryTimer?.cancel();
         try {
           final responseData = jsonDecode(res.body);
           Get.snackbar(
@@ -293,66 +191,22 @@ class SelfieCheckInController extends GetxController {
         }
       }
     } catch (e) {
-      if (!isRetry) _startOneMinuteTimer();
+      Get.snackbar("Error", "No internet connection. Please try again.",
+          backgroundColor: Colors.redAccent, colorText: Colors.white);
     } finally {
       isLoading.value = false;
     }
   }
 
-  void _startOneMinuteTimer() {
-    _savePending(needsAdminApproval: false);
-    isRetrying.value = true;
-    retrySeconds.value = 0;
-
-    _retryTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      retrySeconds.value++;
-      if (retrySeconds.value % 5 == 0) _checkConnectivityAndSync();
-      if (retrySeconds.value >= 60) {
-        timer.cancel();
-        isRetrying.value = false;
-        _savePending(needsAdminApproval: true);
-        Get.snackbar(
-            "Timeout",
-            "Network timeout. Request saved for Admin Approval.",
-            backgroundColor: Colors.orange,
-            colorText: Colors.white,
-            duration: const Duration(seconds: 4));
-      }
-    });
-  }
-
-  Future<void> _savePending({required bool needsAdminApproval}) async {
-    if (selfieImage.value == null) return;
-    final directory = await getApplicationDocumentsDirectory();
-    final String fileName =
-        'checkin_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final String newPath = path.join(directory.path, fileName);
-    final File newImage = await selfieImage.value!.copy(newPath);
+  // ✅ Logout method — data clear karke login par bhejo
+  Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        "pending_checkin",
-        jsonEncode({
-          "imagePath": newImage.path,
-          "lat": _currentPosition!.latitude,
-          "lng": _currentPosition!.longitude,
-          "fullAddress": _fullAddress,
-          "dateTime": DateTime.now().toIso8601String(),
-          "displayTime": dateTime.value,
-          "location": location.value,
-          "needsAdminApproval": needsAdminApproval,
-        }));
-    isPendingMode.value = true;
-    selfieImage.value = newImage;
-    if (!needsAdminApproval && retrySeconds.value == 0) {
-      Get.snackbar("No Internet", "Retrying for 1 minute...",
-          backgroundColor: Colors.red, colorText: Colors.white);
-    }
+    await prefs.clear();
+    Get.offAll(() => const LoginView());
   }
 
   void onButtonPressed() {
-    if (isPendingMode.value) {
-      _attemptSync();
-    } else if (selfieImage.value != null) {
+    if (selfieImage.value != null) {
       confirmCheckIn();
     } else {
       openCamera();

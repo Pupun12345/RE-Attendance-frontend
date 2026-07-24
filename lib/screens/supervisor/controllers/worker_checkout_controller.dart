@@ -4,7 +4,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
@@ -17,8 +16,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smartcare_app/utils/constants.dart';
 
 class WorkerCheckOutController extends GetxController {
-  static const String _pendingCheckoutQueueKey = 'pending_checkout_queue';
-
   late String workerName;
   late String workerId;
   late String workerDbId;
@@ -27,27 +24,15 @@ class WorkerCheckOutController extends GetxController {
   final locationText       = 'Fetching location...'.obs;
   final addressText        = 'Fetching address...'.obs;
   final lastCapturedImage  = Rxn<File>();
-  final isPending          = false.obs;
-  final pendingSecondsLeft = 0.obs;
-  final pendingEscalated   = false.obs;
 
   final isCheckingOut   = false.obs;
   final checkOutSuccess = false.obs;
 
-  // Pending snapshot for dialog
-  final pendingImage    = Rxn<File>();
-  final pendingTime     = RxnString();
-  final pendingLocation = RxnString();
-  final pendingAddress  = RxnString();
-
   String _supervisorId = 'SUP001';
   double? _currentLat;
   double? _currentLng;
-  int _offlineTryCount = 0;
 
   Timer? _clockTimer;
-  Timer? _pendingTimer;
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   final _picker = ImagePicker();
 
@@ -63,16 +48,11 @@ class WorkerCheckOutController extends GetxController {
     _startClock();
     _loadSupervisorId();
     _determinePositionAndListen();
-    _connectivitySub = Connectivity()
-        .onConnectivityChanged
-        .listen(_handleConnectivityChange);
   }
 
   @override
   void onClose() {
     _clockTimer?.cancel();
-    _pendingTimer?.cancel();
-    _connectivitySub?.cancel();
     super.onClose();
   }
 
@@ -211,15 +191,16 @@ class WorkerCheckOutController extends GetxController {
         margin: const EdgeInsets.all(12));
   }
 
-  // ── Online Check-Out ───────────────────────────────────────
-  Future<void> _sendOnlineCheckout() async {
+  // ── Check-Out ──────────────────────────────────────────────
+  Future<void> confirmCheckOut() async {
+    if (lastCapturedImage.value == null) {
+      _showSnack('Please capture photo first', Colors.redAccent);
+      return;
+    }
+
     final token = await _getToken();
     if (token == null) {
       _showSnack('Not authorized', Colors.redAccent);
-      return;
-    }
-    if (lastCapturedImage.value == null) {
-      _showSnack('Please capture photo first', Colors.redAccent);
       return;
     }
 
@@ -249,7 +230,6 @@ class WorkerCheckOutController extends GetxController {
       if (res.statusCode == 200 || res.statusCode == 201) {
         checkOutSuccess.value = true;
         _showSnack('✅ $workerName Checked Out Successfully!', Colors.green);
-        _clearPending();
         await Future.delayed(const Duration(milliseconds: 1200));
         Get.back();
       } else {
@@ -260,190 +240,9 @@ class WorkerCheckOutController extends GetxController {
             Colors.orange);
       }
     } catch (e) {
-      _showSnack('Network error: $e', Colors.orange);
+      _showSnack('No internet connection. Please try again.', Colors.orange);
     } finally {
-      // ── FIX: hamesha loader band karo — success state alag track hoti hai
       isCheckingOut.value = false;
     }
-  }
-
-  // ── Offline Queue ──────────────────────────────────────────
-  Future<List<Map<String, dynamic>>> _loadPendingQueue() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw   = prefs.getString(_pendingCheckoutQueueKey);
-    if (raw == null || raw.isEmpty) return [];
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is List) {
-        return decoded
-            .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
-            .toList();
-      }
-      return [];
-    } catch (_) { return []; }
-  }
-
-  Future<void> _savePendingQueue(List<Map<String, dynamic>> list) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_pendingCheckoutQueueKey, jsonEncode(list));
-  }
-
-  Future<void> _addPendingRecordToStorage() async {
-    if (lastCapturedImage.value == null) return;
-    final queue = await _loadPendingQueue();
-    queue.add({
-      'type'         : 'CHECK_OUT',
-      'userId'       : workerId,
-      'userName'     : workerName,
-      'workerDbId'   : workerDbId,
-      'supervisorId' : _supervisorId,
-      'timeLabel'    : timeString.value,
-      'createdAt'    : DateTime.now().toIso8601String(),
-      'address'      : addressText.value,
-      'locationLabel': locationText.value,
-      'lat'          : _currentLat,
-      'lng'          : _currentLng,
-      'imagePath'    : lastCapturedImage.value!.path,
-    });
-    await _savePendingQueue(queue);
-  }
-
-  Future<int> _syncPendingQueueToBackend() async {
-    final queue = await _loadPendingQueue();
-    if (queue.isEmpty) return 0;
-    final token = await _getToken();
-    if (token == null) return 0;
-
-    final remaining   = <Map<String, dynamic>>[];
-    int uploadedCount = 0;
-
-    for (final item in queue) {
-      try {
-        final imgPath = item['imagePath'] as String?;
-        if (imgPath == null) continue;
-        final file = File(imgPath);
-        if (!await file.exists()) continue;
-
-        // Backend's checkout-pending route expects a multipart request with
-        // fields workerId/location/dateTime and an 'attendanceImage' file -
-        // matching the shape of the online check-out request above, not a
-        // plain JSON body.
-        final request = http.MultipartRequest(
-            'POST', Uri.parse(apiSupervisorCheckoutPending));
-        request.headers['Authorization'] = 'Bearer $token';
-        request.fields['workerId'] = (item['workerDbId'] as String?) ?? '';
-        request.fields['dateTime'] =
-            (item['createdAt'] as String?) ?? DateTime.now().toIso8601String();
-        request.fields['location'] = jsonEncode({
-          'latitude': item['lat'],
-          'longitude': item['lng'],
-          'address': item['address'],
-        });
-        request.files.add(await http.MultipartFile.fromPath(
-          'attendanceImage',
-          imgPath,
-          contentType: MediaType('image', 'jpeg'),
-        ));
-
-        final res = await http.Response.fromStream(await request.send());
-
-        if (res.statusCode == 200 || res.statusCode == 201) {
-          uploadedCount++;
-        } else {
-          remaining.add(item);
-        }
-      } catch (e) {
-        debugPrint('Error syncing item: $e');
-        remaining.add(item);
-      }
-    }
-
-    await _savePendingQueue(remaining);
-    if (uploadedCount > 0 && remaining.isEmpty) _clearPending();
-    return uploadedCount;
-  }
-
-  // ── Pending UI Cycle ───────────────────────────────────────
-  void _startPendingCycle({required bool allowReset}) {
-    _pendingTimer?.cancel();
-    isPending.value          = true;
-    pendingImage.value       = lastCapturedImage.value;
-    pendingTime.value        = timeString.value;
-    pendingLocation.value    = locationText.value;
-    pendingAddress.value     = addressText.value;
-    pendingEscalated.value   = false;
-    pendingSecondsLeft.value = 30;
-
-    _pendingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (pendingSecondsLeft.value > 0) {
-        pendingSecondsLeft.value--;
-      } else {
-        timer.cancel();
-        if (allowReset) {
-          isPending.value          = false;
-          pendingSecondsLeft.value = 0;
-          pendingEscalated.value   = false;
-        } else {
-          pendingEscalated.value   = true;
-          pendingSecondsLeft.value = 0;
-        }
-      }
-    });
-  }
-
-  void _clearPending() {
-    _pendingTimer?.cancel();
-    isPending.value          = false;
-    pendingImage.value       = null;
-    pendingTime.value        = null;
-    pendingLocation.value    = null;
-    pendingAddress.value     = null;
-    pendingSecondsLeft.value = 0;
-    pendingEscalated.value   = false;
-    _offlineTryCount         = 0;
-  }
-
-  // ── Network Listener ───────────────────────────────────────
-  void _handleConnectivityChange(List<ConnectivityResult> results) async {
-    final hasConnection = results.any((r) => r != ConnectivityResult.none);
-    if (!hasConnection) return;
-    final uploaded = await _syncPendingQueueToBackend();
-    if (uploaded > 0) {
-      _showSnack(
-          'Network restored. $uploaded pending check-out(s) sent.',
-          Colors.green);
-    }
-  }
-
-  // ── Main Button Handler ────────────────────────────────────
-  Future<void> confirmCheckOut() async {
-    if (lastCapturedImage.value == null) {
-      _showSnack('Please capture photo first', Colors.redAccent);
-      return;
-    }
-
-    final connectivity = await Connectivity().checkConnectivity();
-    final hasInternet  =
-    connectivity.any((r) => r != ConnectivityResult.none);
-
-    if (!hasInternet) {
-      _offlineTryCount++;
-      if (_offlineTryCount == 1) {
-        await _addPendingRecordToStorage();
-        _showSnack(
-            'No internet. Check-out saved as pending (1st attempt).',
-            Colors.orange);
-        _startPendingCycle(allowReset: true);
-      } else {
-        _showSnack(
-            'No internet again. Check-out will stay pending until network is back.',
-            Colors.deepOrange);
-        _startPendingCycle(allowReset: false);
-      }
-      return;
-    }
-
-    _offlineTryCount = 0;
-    await _sendOnlineCheckout();
   }
 }

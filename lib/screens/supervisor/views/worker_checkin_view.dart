@@ -19,7 +19,6 @@ class WorkerCheckInView extends StatelessWidget {
   static const _blue       = Color(0xFF0B3B8C);
   static const _lightBlue  = Color(0xFFE8F0FE);
   static const _green      = Color(0xFF1B8A4A);
-  static const _orange     = Color(0xFFE65100);
 
   @override
   Widget build(BuildContext context) {
@@ -47,8 +46,6 @@ class WorkerCheckInView extends StatelessWidget {
           final hasImage    = c.lastCapturedImage.value != null;
           final isLoading   = c.isCheckingIn.value;
           final isSuccess   = c.checkInSuccess.value;
-          final isPending   = c.isPending.value;
-          final secs        = c.pendingSecondsLeft.value;
 
           return Stack(
             children: [
@@ -97,7 +94,7 @@ class WorkerCheckInView extends StatelessWidget {
                     // ── Photo Section ──
                     Center(
                       child: GestureDetector(
-                        onTap: (isLoading || isSuccess || isPending)
+                        onTap: (isLoading || isSuccess)
                             ? null
                             : c.openCamera,
                         child: AnimatedContainer(
@@ -145,7 +142,7 @@ class WorkerCheckInView extends StatelessWidget {
                     ),
 
                     // ── Retake option ──
-                    if (hasImage && !isLoading && !isSuccess && !isPending) ...[
+                    if (hasImage && !isLoading && !isSuccess) ...[
                       const SizedBox(height: 12),
                       Center(
                         child: TextButton.icon(
@@ -182,37 +179,6 @@ class WorkerCheckInView extends StatelessWidget {
                                   color: _green,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14),
-                            ),
-                          ),
-                        ]),
-                      ),
-                    ],
-
-                    // ── Pending Banner ──
-                    if (isPending) ...[
-                      const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF3E0),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: _orange.withValues(alpha: 0.4), width: 1),
-                        ),
-                        child: Row(children: [
-                          const Icon(Icons.wifi_off_rounded,
-                              color: _orange, size: 24),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              secs > 0
-                                  ? 'No internet. Retrying in ${secs}s...'
-                                  : 'Waiting for network to sync check-in.',
-                              style: const TextStyle(
-                                  color: _orange,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13),
                             ),
                           ),
                         ]),
@@ -280,11 +246,9 @@ class WorkerCheckInView extends StatelessWidget {
           final hasImage  = c.lastCapturedImage.value != null;
           final isLoading = c.isCheckingIn.value;
           final isSuccess = c.checkInSuccess.value;
-          final isPending = c.isPending.value;
-          final secs      = c.pendingSecondsLeft.value;
 
           // Determine button state
-          final bool isDisabled = isLoading || isSuccess || isPending;
+          final bool isDisabled = isLoading || isSuccess;
 
           Color btnColor;
           IconData btnIcon;
@@ -298,12 +262,6 @@ class WorkerCheckInView extends StatelessWidget {
             btnColor = _blue.withValues(alpha: 0.6);
             btnIcon  = Icons.hourglass_top_rounded;
             btnLabel = 'Submitting...';
-          } else if (isPending) {
-            btnColor = _orange;
-            btnIcon  = Icons.hourglass_bottom_rounded;
-            btnLabel = secs > 0
-                ? 'Pending (${secs}s)'
-                : 'Pending – Waiting for network';
           } else if (hasImage) {
             btnColor = _blue;
             btnIcon  = Icons.check_circle_outline_rounded;
