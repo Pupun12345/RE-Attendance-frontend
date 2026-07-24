@@ -123,8 +123,7 @@ class SelfieCheckOutController extends GetxController {
           "${place.locality ?? "Unknown"}, ${place.subLocality ?? ""}";
         }
       } catch (_) {
-        location.value =
-        "Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}";
+        location.value = "No internet - showing GPS coordinates only";
         _fullAddress = "${pos.latitude},${pos.longitude}";
       }
     } catch (e) {

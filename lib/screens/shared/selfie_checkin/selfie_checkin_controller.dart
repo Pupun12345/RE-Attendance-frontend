@@ -92,25 +92,34 @@ class SelfieCheckInController extends GetxController {
       coordsText.value =
       "Lat: ${pos.latitude.toStringAsFixed(6)}, Lng: ${pos.longitude.toStringAsFixed(6)}";
 
-      List<Placemark> places =
-      await placemarkFromCoordinates(pos.latitude, pos.longitude);
-      if (places.isNotEmpty) {
-        Placemark place = places.first;
-        List<String> parts = [];
-        if (place.subLocality?.isNotEmpty == true) parts.add(place.subLocality!);
-        if (place.locality?.isNotEmpty == true) parts.add(place.locality!);
-        if (place.subAdministrativeArea?.isNotEmpty == true) {
-          parts.add(place.subAdministrativeArea!);
-        }
-        if (place.administrativeArea?.isNotEmpty == true) {
-          parts.add(place.administrativeArea!);
-        }
-        if (place.postalCode?.isNotEmpty == true) parts.add(place.postalCode!);
-        if (place.country?.isNotEmpty == true) parts.add(place.country!);
+      // Reverse-geocoding needs internet even though GPS itself doesn't.
+      // Keep this in its own try/catch so a network failure here doesn't
+      // wipe out the GPS fix we already have or block check-in - fall back
+      // to raw coordinates as the address instead.
+      try {
+        List<Placemark> places =
+        await placemarkFromCoordinates(pos.latitude, pos.longitude);
+        if (places.isNotEmpty) {
+          Placemark place = places.first;
+          List<String> parts = [];
+          if (place.subLocality?.isNotEmpty == true) parts.add(place.subLocality!);
+          if (place.locality?.isNotEmpty == true) parts.add(place.locality!);
+          if (place.subAdministrativeArea?.isNotEmpty == true) {
+            parts.add(place.subAdministrativeArea!);
+          }
+          if (place.administrativeArea?.isNotEmpty == true) {
+            parts.add(place.administrativeArea!);
+          }
+          if (place.postalCode?.isNotEmpty == true) parts.add(place.postalCode!);
+          if (place.country?.isNotEmpty == true) parts.add(place.country!);
 
-        _fullAddress = parts.join(", ");
-        location.value =
-        "${place.locality ?? "Unknown"}, ${place.subLocality ?? ""}";
+          _fullAddress = parts.join(", ");
+          location.value =
+          "${place.locality ?? "Unknown"}, ${place.subLocality ?? ""}";
+        }
+      } catch (_) {
+        _fullAddress = "${pos.latitude},${pos.longitude}";
+        location.value = "No internet - showing GPS coordinates only";
       }
     } catch (e) {
       location.value = "Failed to fetch location";

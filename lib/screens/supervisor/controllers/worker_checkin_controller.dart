@@ -31,6 +31,7 @@ class WorkerCheckInController extends GetxController {
   String _supervisorId = '';
   double? _currentLat;
   double? _currentLng;
+  bool _offlineAddressWarned = false;
 
   Timer? _clockTimer;
 
@@ -156,9 +157,20 @@ class WorkerCheckInController extends GetxController {
         ];
         addressText.value =
         parts.isNotEmpty ? parts.join(', ') : 'Address not available';
+        _offlineAddressWarned = false;
       }
     } catch (_) {
-      addressText.value = 'Unable to fetch address';
+      // placemarkFromCoordinates needs internet even though GPS itself
+      // doesn't - a failure here almost always means no network. Fall back
+      // to the raw coordinates (still accurate) instead of blocking, and
+      // let the caller know why the address text looks different. The
+      // position stream can retry this often, so only warn once.
+      addressText.value = '$lat, $lng';
+      if (!_offlineAddressWarned) {
+        _offlineAddressWarned = true;
+        _showSnack('No internet - address lookup skipped, using GPS coordinates',
+            Colors.orange);
+      }
     }
   }
 

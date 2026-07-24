@@ -131,42 +131,54 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
 
       final Position position = await Geolocator.getCurrentPosition();
 
-      // Get address from coordinates
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
+      // Reverse-geocoding needs internet even though GPS itself doesn't -
+      // keep it in its own try/catch so a network failure here doesn't
+      // discard the GPS fix we already have.
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
 
-      if (placemarks.isNotEmpty && mounted) {
-        final place = placemarks[0];
-        String locationText = '';
+        if (placemarks.isNotEmpty && mounted) {
+          final place = placemarks[0];
+          String locationText = '';
 
-        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
-          locationText = place.subLocality!;
-        } else if (place.locality != null && place.locality!.isNotEmpty) {
-          locationText = place.locality!;
+          if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+            locationText = place.subLocality!;
+          } else if (place.locality != null && place.locality!.isNotEmpty) {
+            locationText = place.locality!;
+          }
+
+          if (place.locality != null &&
+              place.locality!.isNotEmpty &&
+              place.subLocality != place.locality) {
+            locationText +=
+            locationText.isEmpty ? place.locality! : ', ${place.locality}';
+          }
+
+          if (place.administrativeArea != null &&
+              place.administrativeArea!.isNotEmpty) {
+            locationText += locationText.isEmpty
+                ? place.administrativeArea!
+                : ', ${place.administrativeArea}';
+          }
+
+          setState(() {
+            _currentLocation = locationText.isNotEmpty
+                ? locationText
+                : "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
+            _isLocationLoading = false;
+          });
         }
-
-        if (place.locality != null &&
-            place.locality!.isNotEmpty &&
-            place.subLocality != place.locality) {
-          locationText +=
-          locationText.isEmpty ? place.locality! : ', ${place.locality}';
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _currentLocation =
+                "No internet - Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
+            _isLocationLoading = false;
+          });
         }
-
-        if (place.administrativeArea != null &&
-            place.administrativeArea!.isNotEmpty) {
-          locationText += locationText.isEmpty
-              ? place.administrativeArea!
-              : ', ${place.administrativeArea}';
-        }
-
-        setState(() {
-          _currentLocation = locationText.isNotEmpty
-              ? locationText
-              : "Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}";
-          _isLocationLoading = false;
-        });
       }
     } catch (e) {
       if (mounted) {

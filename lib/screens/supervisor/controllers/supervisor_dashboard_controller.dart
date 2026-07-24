@@ -60,20 +60,25 @@ class SupervisorDashboardController extends GetxController {
   }
 
   Future<void> fetchLocation() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) { location.value = 'GPS not enabled'; return; }
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) { location.value = 'GPS not enabled'; return; }
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) { location.value = 'Location permission denied'; return; }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) { location.value = 'Location permission denied'; return; }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        location.value = 'Location permission permanently denied';
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+          timeLimit: const Duration(seconds: 15));
+      location.value = 'Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}';
+    } catch (_) {
+      location.value = 'Unable to fetch location';
     }
-    if (permission == LocationPermission.deniedForever) {
-      location.value = 'Location permission permanently denied';
-      return;
-    }
-    final pos = await Geolocator.getCurrentPosition();
-    location.value = 'Lat: ${pos.latitude.toStringAsFixed(4)}, Lng: ${pos.longitude.toStringAsFixed(4)}';
   }
 
   Future<void> logout() async {
