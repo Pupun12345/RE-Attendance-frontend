@@ -22,6 +22,7 @@ class OvertimeRecord {
   final String id;
   final OvertimeUser user;
   final DateTime date;
+  final String? dateDisplay; // backend-computed IST date, dd-MM-yyyy
   final double hours;
   String status; // <-- ✅ **FIX: REMOVED 'final' FROM THIS LINE**
   final String reason;
@@ -30,6 +31,7 @@ class OvertimeRecord {
     required this.id,
     required this.user,
     required this.date,
+    this.dateDisplay,
     required this.hours,
     required this.status,
     required this.reason,
@@ -40,6 +42,7 @@ class OvertimeRecord {
       id: json['_id'],
       user: OvertimeUser.fromJson(json['user'] ?? {}),
       date: DateTime.parse(json['date']),
+      dateDisplay: json['dateDisplay'],
       hours: (json['hours'] as num).toDouble(), // Ensure hours is a double
       status: json['status'],
       reason: json['reason'] ?? 'No reason provided',

@@ -271,13 +271,15 @@ class _SelfAttendanceCard extends StatelessWidget {
         Expanded(
           child:
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(controller.formatDate(record['date']),
+            Text(
+                record['dateDisplay'] ??
+                    controller.formatDate(record['date']),
                 style: const TextStyle(
                     fontWeight: FontWeight.w600, fontSize: 15)),
             const SizedBox(height: 4),
             Text(
-              'In: ${controller.formatTime(record['checkInTime'])}  '
-                  'Out: ${controller.formatTime(record['checkOutTime'])}',
+              'In: ${record['checkInTimeDisplay'] ?? controller.formatTime(record['checkInTime'])}  '
+                  'Out: ${record['checkOutTimeDisplay'] ?? controller.formatTime(record['checkOutTime'])}',
               style:
               const TextStyle(fontSize: 13, color: Colors.black54),
             ),

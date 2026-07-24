@@ -8,6 +8,12 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:smartcare_app/utils/constants.dart';
 
+// India is always UTC+5:30 - shifting by a fixed offset gives the correct
+// IST wall-clock fields regardless of what timezone the device itself is
+// set to, unlike `.toLocal()` which depends on the device's setting.
+DateTime _toIST(DateTime utc) =>
+    utc.toUtc().add(const Duration(hours: 5, minutes: 30));
+
 // 1. Model for attendance data
 class AttendanceRecord {
   final String id;
@@ -15,6 +21,8 @@ class AttendanceRecord {
   final DateTime date;
   final DateTime? checkInTime;
   final DateTime? checkOutTime;
+  final String? checkInTimeDisplay;
+  final String? checkOutTimeDisplay;
 
   AttendanceRecord({
     required this.id,
@@ -22,19 +30,24 @@ class AttendanceRecord {
     required this.date,
     this.checkInTime,
     this.checkOutTime,
+    this.checkInTimeDisplay,
+    this.checkOutTimeDisplay,
   });
 
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
     return AttendanceRecord(
       id: json['_id']?.toString() ?? '',
       status: json['status']?.toString() ?? 'unknown',
-      date: DateTime.parse(json['date']).toLocal(),
+      date: _toIST(DateTime.parse(json['date'])),
       checkInTime: json['checkInTime'] != null
-          ? DateTime.parse(json['checkInTime']).toLocal()
+          ? _toIST(DateTime.parse(json['checkInTime']))
           : null,
       checkOutTime: json['checkOutTime'] != null
-          ? DateTime.parse(json['checkOutTime']).toLocal()
+          ? _toIST(DateTime.parse(json['checkOutTime']))
           : null,
+      // Backend-computed IST strings - preferred for direct display.
+      checkInTimeDisplay: json['checkInTimeDisplay'],
+      checkOutTimeDisplay: json['checkOutTimeDisplay'],
     );
   }
 }
@@ -209,29 +222,12 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
         );
 
         if (todayRecord != null && mounted) {
-          if (todayRecord['checkInTime'] != null) {
-            final checkInDateTime =
-            DateTime.parse(todayRecord['checkInTime']).toLocal();
-            setState(() {
-              _todayCheckIn = DateFormat('hh:mm a').format(checkInDateTime);
-            });
-          } else {
-            setState(() {
-              _todayCheckIn = "Not checked in";
-            });
-          }
-
-          if (todayRecord['checkOutTime'] != null) {
-            final checkOutDateTime =
-            DateTime.parse(todayRecord['checkOutTime']).toLocal();
-            setState(() {
-              _todayCheckOut = DateFormat('hh:mm a').format(checkOutDateTime);
-            });
-          } else {
-            setState(() {
-              _todayCheckOut = "Not checked out";
-            });
-          }
+          // Backend sends these pre-formatted in IST - use them directly
+          // instead of converting the raw timestamp on-device.
+          setState(() {
+            _todayCheckIn = todayRecord['checkInTimeDisplay'] ?? "Not checked in";
+            _todayCheckOut = todayRecord['checkOutTimeDisplay'] ?? "Not checked out";
+          });
         } else {
           setState(() {
             _todayCheckIn = "Not checked in";
@@ -704,7 +700,8 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
                                     ),
                                   ),
                                   Text(
-                                    _formatTime(item.checkInTime),
+                                    item.checkInTimeDisplay ??
+                                        _formatTime(item.checkInTime),
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
@@ -744,7 +741,8 @@ class AttendanceOverviewScreenState extends State<AttendanceOverviewScreen> {
                                     ),
                                   ),
                                   Text(
-                                    _formatTime(item.checkOutTime),
+                                    item.checkOutTimeDisplay ??
+                                        _formatTime(item.checkOutTime),
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
