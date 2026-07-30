@@ -1,3 +1,3 @@
-void saveCsvWeb(String csvData, String fileName) {
+void saveBytesWeb(List<int> bytes, String fileName, String mimeType) {
 
 }

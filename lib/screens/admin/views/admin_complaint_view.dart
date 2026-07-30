@@ -38,10 +38,35 @@ class AdminComplaintView extends StatelessWidget {
         }
         return RefreshIndicator(
           onRefresh: c.fetchComplaints,
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: c.complaints.length,
-            itemBuilder: (_, i) => _ComplaintCard(c.complaints[i]),
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (c.hasMore &&
+                  notification.metrics.pixels >=
+                      notification.metrics.maxScrollExtent - 300) {
+                c.loadMore();
+              }
+              return false;
+            },
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: c.pagedComplaints.length + (c.hasMore ? 1 : 0),
+              itemBuilder: (_, i) {
+                if (i == c.pagedComplaints.length) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.4, color: _blue),
+                      ),
+                    ),
+                  );
+                }
+                return _ComplaintCard(c.pagedComplaints[i]);
+              },
+            ),
           ),
         );
       }),

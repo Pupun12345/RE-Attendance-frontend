@@ -10,7 +10,10 @@ class AttendanceDetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(AttendanceDetailController());
+    // permanent: true keeps this controller (and its search TextField's
+    // TextEditingController) alive instead of letting GetX auto-dispose it
+    // - see workers_view.dart for the same fix and full rationale.
+    final controller = Get.put(AttendanceDetailController(), permanent: true);
     const themeBlue = Color(0xFF0B3B8C);
 
     return Scaffold(
@@ -122,6 +125,36 @@ class AttendanceDetailView extends StatelessWidget {
                   'Employee List (Today)',
                   style: TextStyle(
                       fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+
+            // ── Search Box ──────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: TextField(
+                  controller: controller.employeeSearchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search by name...',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: themeBlue, width: 1.5),
+                    ),
+                  ),
                 ),
               ),
             ),

@@ -9,7 +9,7 @@ import 'package:smartcare_app/screens/admin/controllers/admin_reports_controller
 class AdminReportsView extends StatelessWidget {
   const AdminReportsView({super.key});
 
-  static const _blue      = Color(0xFF0D47A1);
+  static const _blue = Color(0xFF0D47A1);
 
   @override
   Widget build(BuildContext context) {
@@ -49,18 +49,48 @@ class AdminReportsView extends StatelessWidget {
           _ReportCard(
             title: 'Monthly Attendance Report',
             description:
-                'Monthly summary grouped by Management, Supervisor and Workers.',
+                'Full month grid with per-day status and totals for every employee.',
             icon: LucideIcons.calendarRange,
             extra: Obx(() => Row(children: [
-                  _DateBtn(
-                      label: 'From',
-                      date: c.monthlyFrom.value,
-                      onTap: () => c.pickMonthlyDate(context, true)),
-                  const SizedBox(width: 8),
-                  _DateBtn(
-                      label: 'To',
-                      date: c.monthlyTo.value,
-                      onTap: () => c.pickMonthlyDate(context, false)),
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: c.monthlyMonth.value,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Month',
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      items: [
+                        for (int m = 1; m <= 12; m++)
+                          DropdownMenuItem(
+                            value: m,
+                            child: Text(
+                                AdminReportsController.monthNames[m - 1]),
+                          ),
+                      ],
+                      onChanged: (m) => m == null ? null : c.setMonth(m),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: c.monthlyYear.value,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Year',
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      items: [
+                        for (final y in c.selectableYears)
+                          DropdownMenuItem(value: y, child: Text('$y')),
+                      ],
+                      onChanged: (y) => y == null ? null : c.setYear(y),
+                    ),
+                  ),
                 ])),
             isLoading: c.isMonthlyExporting,
             onDownload: c.exportMonthly,
@@ -142,18 +172,4 @@ class _ReportCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _DateBtn extends StatelessWidget {
-  final String label;
-  final DateTime? date;
-  final VoidCallback onTap;
-  const _DateBtn({required this.label, required this.date, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => OutlinedButton(
-        onPressed: onTap,
-        child: Text(
-            date == null ? label : DateFormat('dd-MM-yyyy').format(date!)),
-      );
 }

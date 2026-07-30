@@ -126,9 +126,9 @@ class AddManagementStaffController extends GetxController {
       final data = jsonDecode(responseBody);
 
       if (response.statusCode == 201 && data['success'] == true) {
+        Get.back(result: true);
         Get.snackbar("Success", "Management Staff added successfully!",
             backgroundColor: Colors.green, colorText: Colors.white);
-        Get.back(result: true);
       } else {
         Get.snackbar("Error", data['message'] ?? 'Failed to add staff.',
             backgroundColor: Colors.redAccent, colorText: Colors.white);

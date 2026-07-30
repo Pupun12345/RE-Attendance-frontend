@@ -62,6 +62,22 @@ class AdminComplaintController extends GetxController {
   final complaints = <AdminComplaint>[].obs;
   final isLoading = true.obs;
 
+  static const int pageSize = 20;
+  final visibleCount = pageSize.obs;
+  final isLoadingMore = false.obs;
+
+  List<AdminComplaint> get pagedComplaints =>
+      complaints.take(visibleCount.value).toList();
+  bool get hasMore => visibleCount.value < complaints.length;
+
+  Future<void> loadMore() async {
+    if (!hasMore || isLoadingMore.value) return;
+    isLoadingMore.value = true;
+    await Future.delayed(const Duration(milliseconds: 300));
+    visibleCount.value = (visibleCount.value + pageSize).clamp(0, complaints.length);
+    isLoadingMore.value = false;
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -87,6 +103,8 @@ class AdminComplaintController extends GetxController {
             .map((c) => AdminComplaint.fromJson(c))
             .where((c) => c.createdAt.isAfter(cutoff))
             .toList();
+        visibleCount.value = pageSize;
+        isLoadingMore.value = false;
       }
     } catch (e) {
       debugPrint('Complaint fetch error: $e');

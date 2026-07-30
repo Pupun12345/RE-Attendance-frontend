@@ -49,21 +49,27 @@ class AdminOvertimeView extends StatelessWidget {
             return TabBarView(
               controller: c.tabController,
               children: [
-                _OvertimeList(
-                    records: c.pendingList,
+                Obx(() => _OvertimeList(
+                    records: c.pagedPending,
                     isPending: true,
                     controller: c,
-                    emptyMsg: 'No pending overtime requests.'),
-                _OvertimeList(
-                    records: c.approvedList,
+                    hasMore: c.pendingHasMore,
+                    onLoadMore: c.loadMorePending,
+                    emptyMsg: 'No pending overtime requests.')),
+                Obx(() => _OvertimeList(
+                    records: c.pagedApproved,
                     isPending: false,
                     controller: c,
-                    emptyMsg: 'No approved overtime records.'),
-                _OvertimeList(
-                    records: c.rejectedList,
+                    hasMore: c.approvedHasMore,
+                    onLoadMore: c.loadMoreApproved,
+                    emptyMsg: 'No approved overtime records.')),
+                Obx(() => _OvertimeList(
+                    records: c.pagedRejected,
                     isPending: false,
                     controller: c,
-                    emptyMsg: 'No rejected overtime records.'),
+                    hasMore: c.rejectedHasMore,
+                    onLoadMore: c.loadMoreRejected,
+                    emptyMsg: 'No rejected overtime records.')),
               ],
             );
           }),
@@ -98,14 +104,20 @@ class _OvertimeList extends StatelessWidget {
   final List<OvertimeRecord> records;
   final bool isPending;
   final AdminOvertimeController controller;
+  final bool hasMore;
+  final VoidCallback onLoadMore;
   final String emptyMsg;
 
   const _OvertimeList({
     required this.records,
     required this.isPending,
     required this.controller,
+    required this.hasMore,
+    required this.onLoadMore,
     required this.emptyMsg,
   });
+
+  static const _blue = Color(0xFF0D47A1);
 
   @override
   Widget build(BuildContext context) {
@@ -114,12 +126,37 @@ class _OvertimeList extends StatelessWidget {
           child: Text(emptyMsg,
               style: const TextStyle(fontSize: 16, color: Colors.black54)));
     }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: records.length,
-      itemBuilder: (_, i) => isPending
-          ? _PendingCard(record: records[i], c: controller)
-          : _HistoryCard(record: records[i]),
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (hasMore &&
+            notification.metrics.pixels >=
+                notification.metrics.maxScrollExtent - 300) {
+          onLoadMore();
+        }
+        return false;
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: records.length + (hasMore ? 1 : 0),
+        itemBuilder: (_, i) {
+          if (i == records.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2.4, color: _blue),
+                ),
+              ),
+            );
+          }
+          return isPending
+              ? _PendingCard(record: records[i], c: controller)
+              : _HistoryCard(record: records[i]);
+        },
+      ),
     );
   }
 }

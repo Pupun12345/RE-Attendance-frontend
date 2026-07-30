@@ -15,6 +15,7 @@ class AttendanceDetailController extends GetxController {
   final employeeList = <dynamic>[].obs;
   final filteredEmployeeList = <dynamic>[].obs;
   final selectedEmployeeFilter = Rxn<String>();
+  final employeeSearchController = TextEditingController();
 
   final presentCount = 0.obs;
   final absentCount = 0.obs;
@@ -26,7 +27,14 @@ class AttendanceDetailController extends GetxController {
     super.onInit();
     ever(employeeList, (_) => _applyFilter());
     ever(selectedEmployeeFilter, (_) => _applyFilter());
+    employeeSearchController.addListener(_applyFilter);
     fetchAllData();
+  }
+
+  @override
+  void onClose() {
+    employeeSearchController.dispose();
+    super.onClose();
   }
 
   Future<void> fetchAllData() async {
@@ -149,16 +157,22 @@ class AttendanceDetailController extends GetxController {
   }
 
   void _applyFilter() {
-    if (selectedEmployeeFilter.value == null) {
-      filteredEmployeeList.value = employeeList;
-    } else {
-      filteredEmployeeList.value = employeeList
-          .where((emp) => (emp['status'] ?? 'absent')
-              .toString()
-              .toLowerCase()
-              .contains(selectedEmployeeFilter.value!.toLowerCase()))
-          .toList();
+    Iterable<dynamic> result = employeeList;
+
+    if (selectedEmployeeFilter.value != null) {
+      result = result.where((emp) => (emp['status'] ?? 'absent')
+          .toString()
+          .toLowerCase()
+          .contains(selectedEmployeeFilter.value!.toLowerCase()));
     }
+
+    final query = employeeSearchController.text.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      result = result.where((emp) =>
+          (emp['name'] ?? '').toString().toLowerCase().contains(query));
+    }
+
+    filteredEmployeeList.value = result.toList();
   }
 
   void setEmployeeFilter(String? status) {

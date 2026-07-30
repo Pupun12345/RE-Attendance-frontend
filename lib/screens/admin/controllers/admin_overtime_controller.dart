@@ -19,6 +19,56 @@ class AdminOvertimeController extends GetxController
   final approvedList = <OvertimeRecord>[].obs;
   final rejectedList = <OvertimeRecord>[].obs;
 
+  static const int pageSize = 20;
+  final pendingVisible  = pageSize.obs;
+  final approvedVisible = pageSize.obs;
+  final rejectedVisible = pageSize.obs;
+
+  // Drives the small bottom-of-list spinner while a scroll-triggered
+  // "load more" is in flight, so auto-loading doesn't fire twice for the
+  // same scroll gesture.
+  final pendingLoadingMore  = false.obs;
+  final approvedLoadingMore = false.obs;
+  final rejectedLoadingMore = false.obs;
+
+  List<OvertimeRecord> get pagedPending =>
+      pendingList.take(pendingVisible.value).toList();
+  List<OvertimeRecord> get pagedApproved =>
+      approvedList.take(approvedVisible.value).toList();
+  List<OvertimeRecord> get pagedRejected =>
+      rejectedList.take(rejectedVisible.value).toList();
+
+  bool get pendingHasMore  => pendingVisible.value  < pendingList.length;
+  bool get approvedHasMore => approvedVisible.value < approvedList.length;
+  bool get rejectedHasMore => rejectedVisible.value < rejectedList.length;
+
+  Future<void> loadMorePending() async {
+    if (!pendingHasMore || pendingLoadingMore.value) return;
+    pendingLoadingMore.value = true;
+    await Future.delayed(const Duration(milliseconds: 300));
+    pendingVisible.value =
+        (pendingVisible.value + pageSize).clamp(0, pendingList.length);
+    pendingLoadingMore.value = false;
+  }
+
+  Future<void> loadMoreApproved() async {
+    if (!approvedHasMore || approvedLoadingMore.value) return;
+    approvedLoadingMore.value = true;
+    await Future.delayed(const Duration(milliseconds: 300));
+    approvedVisible.value =
+        (approvedVisible.value + pageSize).clamp(0, approvedList.length);
+    approvedLoadingMore.value = false;
+  }
+
+  Future<void> loadMoreRejected() async {
+    if (!rejectedHasMore || rejectedLoadingMore.value) return;
+    rejectedLoadingMore.value = true;
+    await Future.delayed(const Duration(milliseconds: 300));
+    rejectedVisible.value =
+        (rejectedVisible.value + pageSize).clamp(0, rejectedList.length);
+    rejectedLoadingMore.value = false;
+  }
+
   String? _token;
 
   @override
@@ -56,6 +106,12 @@ class AdminOvertimeController extends GetxController
         pendingList.value  = all.where((r) => r.status == 'pending').toList();
         approvedList.value = all.where((r) => r.status == 'approved').toList();
         rejectedList.value = all.where((r) => r.status == 'rejected').toList();
+        pendingVisible.value  = pageSize;
+        approvedVisible.value = pageSize;
+        rejectedVisible.value = pageSize;
+        pendingLoadingMore.value  = false;
+        approvedLoadingMore.value = false;
+        rejectedLoadingMore.value = false;
       } else {
         _err('Failed to load overtime records.');
       }

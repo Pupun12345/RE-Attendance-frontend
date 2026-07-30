@@ -44,7 +44,16 @@ class ManageUsersView extends StatelessWidget {
           }
 
           // ✅ CustomScrollView + SliverList = smooth scrolling
-          return CustomScrollView(
+          return NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (controller.hasMore &&
+                  notification.metrics.pixels >=
+                      notification.metrics.maxScrollExtent - 300) {
+                controller.loadMore();
+              }
+              return false;
+            },
+            child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverPadding(
@@ -103,17 +112,32 @@ class ManageUsersView extends StatelessWidget {
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverList.builder(
-                    itemCount: controller.filteredUsers.length,
+                    itemCount: controller.pagedUsers.length,
                     itemBuilder: (context, index) {
                       return _buildUserCard(
-                          controller, controller.filteredUsers[index]);
+                          controller, controller.pagedUsers[index]);
                     },
+                  ),
+                ),
+
+              if (controller.hasMore)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.4),
+                      ),
+                    ),
                   ),
                 ),
 
               // Bottom padding
               const SliverPadding(padding: EdgeInsets.only(bottom: 20)),
             ],
+            ),
           );
         }),
       ),

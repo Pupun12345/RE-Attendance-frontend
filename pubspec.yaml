@@ -1,7 +1,7 @@
 name: smartcare_app
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.0.0+6
+version: 1.0.0+7
 
 environment:
   sdk: ^3.8.0
@@ -20,15 +20,15 @@ dependencies:
   lottie: ^2.6.0
   lucide_icons: ^0.257.0
   image_picker: ^1.0.4
+  camera: ^0.11.0+2
+  flutter_image_compress: ^2.3.0
+  path_provider: ^2.1.5
+  excel: ^4.0.6
   geolocator: ^10.0.0
-  csv: ^5.0.3
   file_picker: ^8.1.6
   http_parser: ^4.0.2
   geocoding: ^4.0.0
   cupertino_icons: ^1.0.2
-
-  # For Downloads folder (MediaStore)
-  mime: ^1.0.4
 
 dev_dependencies:
   flutter_test:

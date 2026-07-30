@@ -1,10 +1,9 @@
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
-import 'dart:convert';
+import 'dart:typed_data';
 
-void saveCsvWeb(String csvData, String fileName) {
-  final bytes = utf8.encode(csvData);
-  final blob = html.Blob([bytes], 'text/csv');
+void saveBytesWeb(List<int> bytes, String fileName, String mimeType) {
+  final blob = html.Blob([Uint8List.fromList(bytes)], mimeType);
   final url = html.Url.createObjectUrlFromBlob(blob);
 
   html.AnchorElement(href: url)

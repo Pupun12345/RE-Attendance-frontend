@@ -7,12 +7,12 @@ import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:smartcare_app/utils/constants.dart';
 
 import '../login/login_view.dart'; // 👈 apna login view import karo
+import '../selfie_camera/front_camera_capture_view.dart';
 
 class SelfieCheckInController extends GetxController {
   final Color themeBlue = const Color(0xFF0B3B8C);
@@ -68,28 +68,43 @@ class SelfieCheckInController extends GetxController {
     userName.value = prefs.getString('userName') ?? 'Unknown';
   }
 
-  Future<void> _fetchLocation() async {
+  // Shares one in-flight GPS request instead of starting another every
+  // time this is called, so tapping check-in while the initial fetch is
+  // still running just waits on that one.
+  Future<bool>? _locationFetch;
+
+  Future<bool> _ensureLocation() {
+    return _locationFetch ??=
+        _fetchLocation().whenComplete(() => _locationFetch = null);
+  }
+
+  Future<bool> _fetchLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       location.value = "Location services disabled";
       coordsText.value = "Enable GPS";
-      return;
+      return false;
     }
 
     LocationPermission p = await Geolocator.checkPermission();
     if (p == LocationPermission.denied) {
       p = await Geolocator.requestPermission();
     }
-    if (p == LocationPermission.deniedForever) {
+    if (p == LocationPermission.deniedForever ||
+        p == LocationPermission.denied) {
       location.value = "Location permission denied";
       coordsText.value = "Allow location access";
-      return;
+      return false;
     }
 
     try {
       final pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
       _currentPosition = pos;
+      // Coordinates alone are a valid location. Seed the address with them
+      // up front so a failed/empty reverse-geocode can never leave us with
+      // nothing and block check-in.
+      _fullAddress = "${pos.latitude},${pos.longitude}";
       coordsText.value =
       "Lat: ${pos.latitude.toStringAsFixed(6)}, Lng: ${pos.longitude.toStringAsFixed(6)}";
 
@@ -119,22 +134,19 @@ class SelfieCheckInController extends GetxController {
           "${place.locality ?? "Unknown"}, ${place.subLocality ?? ""}";
         }
       } catch (_) {
-        _fullAddress = "${pos.latitude},${pos.longitude}";
         location.value = "No internet - showing GPS coordinates only";
       }
+      return true;
     } catch (e) {
       location.value = "Failed to fetch location";
       coordsText.value = "Error: ${e.toString()}";
+      return false;
     }
   }
 
   Future<void> openCamera() async {
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.camera,
-      preferredCameraDevice: CameraDevice.front,
-      imageQuality: 85,
-    );
-    if (picked != null) selfieImage.value = File(picked.path);
+    final captured = await Get.to<File>(() => const FrontCameraCaptureView());
+    if (captured != null) selfieImage.value = captured;
   }
 
   Future<void> confirmCheckIn() async {
@@ -143,21 +155,20 @@ class SelfieCheckInController extends GetxController {
           backgroundColor: Colors.red, colorText: Colors.white);
       return;
     }
-    if (_currentPosition == null) {
-      Get.snackbar("Error", "Location not available. Please wait...",
-          backgroundColor: Colors.red, colorText: Colors.white);
-      _fetchLocation();
-      return;
-    }
-    if (_fullAddress.isEmpty) {
-      Get.snackbar("Error", "Address not available. Please wait...",
-          backgroundColor: Colors.red, colorText: Colors.white);
-      _fetchLocation();
-      return;
-    }
-
     isLoading.value = true;
     try {
+      // Wait for the GPS fix instead of bouncing the user back to tap
+      // again - on a cold start the position simply hasn't landed yet.
+      // The address is never a gate: reverse-geocoding needs internet, and
+      // raw coordinates are already a complete location.
+      if (_currentPosition == null) await _ensureLocation();
+      if (_currentPosition == null) {
+        Get.snackbar("Error",
+            "Could not get your location. Please turn on GPS and try again.",
+            backgroundColor: Colors.red, colorText: Colors.white);
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("token");
 
@@ -190,6 +201,7 @@ class SelfieCheckInController extends GetxController {
       } else if (res.statusCode == 401) {
         await logout();
       } else {
+        selfieImage.value = null;
         try {
           final responseData = jsonDecode(res.body);
           Get.snackbar(
@@ -201,6 +213,7 @@ class SelfieCheckInController extends GetxController {
         }
       }
     } catch (e) {
+      selfieImage.value = null;
       Get.snackbar("Error", "No internet connection. Please try again.",
           backgroundColor: Colors.redAccent, colorText: Colors.white);
     } finally {

@@ -17,8 +17,26 @@ class ManageUsersController extends GetxController {
   final filteredUsers = <User>[].obs;
   final isLoading = true.obs;
 
+  static const int pageSize = 20;
+  final visibleCount = pageSize.obs;
+  final isLoadingMore = false.obs;
+
   final searchController = TextEditingController();
   String? _token;
+
+  List<User> get pagedUsers =>
+      filteredUsers.take(visibleCount.value).toList();
+
+  bool get hasMore => visibleCount.value < filteredUsers.length;
+
+  Future<void> loadMore() async {
+    if (!hasMore || isLoadingMore.value) return;
+    isLoadingMore.value = true;
+    await Future.delayed(const Duration(milliseconds: 300));
+    visibleCount.value =
+        (visibleCount.value + pageSize).clamp(0, filteredUsers.length);
+    isLoadingMore.value = false;
+  }
 
   @override
   void onInit() {
@@ -68,6 +86,8 @@ class ManageUsersController extends GetxController {
             .cast<User>();
         users.value = loadedUsers;
         filteredUsers.value = List<User>.from(loadedUsers);
+        visibleCount.value = pageSize;
+        isLoadingMore.value = false;
       } else {
         Get.snackbar("Error", "Failed to load users.",
             backgroundColor: Colors.redAccent, colorText: Colors.white);
@@ -91,6 +111,8 @@ class ManageUsersController extends GetxController {
         return name.contains(query) || role.contains(query);
       }).toList();
     }
+    visibleCount.value = pageSize;
+    isLoadingMore.value = false;
   }
 
   Future<void> deleteUser(String userId) async {
